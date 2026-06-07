@@ -1,0 +1,43 @@
+# INFO: Change the tailscale names to match your own 
+#  - uncomment homebox if you need that enabled also 
+
+
+
+
+# --- Vaultwarden (Main Domain on Port 443) ---
+hostname.your-tailnet-name.ts.net {
+
+    # 1. Security: Block Vaultwarden Admin unless on local or Tailnet
+    @blocked {
+        path /admin*
+        not remote_ip 192.168.1.0/24 100.64.0.0/10 172.16.0.0/12
+    }
+    respond @blocked 403
+
+    # 2. Vaultwarden WebSockets (Notifications)
+    reverse_proxy /notifications/hub* vaultwarden:3012
+
+    # 3. Vaultwarden Main Traffic
+    reverse_proxy vaultwarden:80
+
+    # 4. Global Security Headers
+    header {
+        Strict-Transport-Security "max-age=31536000;"
+    }
+}
+
+# --- Homebox (Separate Port to avoid white-page/path issues) ---
+# Access via hostname.your-tailnet-name.ts.net:8443
+#hostname.your-tailnet-name.ts.net:8443 {
+#
+#    # (Optional) Basic Auth - Uncomment and use your hash if you want an extra password layer
+#    # basic_auth {
+#    #     admin <YOUR_HASH_HERE>
+#    # }
+#
+#    reverse_proxy homebox:7745
+#    
+#    header {
+#        Strict-Transport-Security "max-age=31536000;"
+#    }
+#}

@@ -1,0 +1,44 @@
+  
+#---------------------------------------------------------------------#
+#    JELLYFIN - A simpler more opensource plex alternative           #
+#---------------------------------------------------------------------#
+  
+  jellyfin:
+    image: ghcr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    env_file:
+      - ./services/jellyfin/jellyfin.env  
+    volumes:
+      - ./volumes/jellyfin/config:/config
+      - /media/YOUR-USB-DRIVE-PATH/TV:/data/tvshows
+      - /media/32GUSB/MOVIES:/data/movies
+      - /media/YOUR-USB-DRIVE-PATH/MUSIC:/data/music
+      - /opt/vc/lib:/opt/vc/lib #optional
+    ports:
+      - 8096:8096
+      - 8920:8920 #optional
+      - 7359:7359/udp #optional
+      #- 1900:1900/udp #optional
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8096"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  
+    labels:
+      - homepage.group=MEDIA
+      - homepage.name=jellyfin
+      - homepage.icon=jellyfin.png
+      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi4-red}.local:8096
+      - homepage.description=media server/player
+    networks:
+      private_network:
+        ipv4_address: 172.19.0.23 # internal address of jellyfin 
+    restart: unless-stopped 
+    devices:
+      - /dev/dri:/dev/dri #optional
+      #- /dev/vcsm:/dev/vcsm #optional
+      #- /dev/vchiq:/dev/vchiq #optional
+      #- /dev/video10:/dev/video10 #optional
+      #- /dev/video11:/dev/video11 #optional
+      - /dev/video20:/dev/video20 #optional findin your pi 'ls /dev/vid*' an replace values here for hw support

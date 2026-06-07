@@ -1,0 +1,30 @@
+  
+#---------------------------------------------------------------------#
+#     PROWLARR UI                                                     #
+#---------------------------------------------------------------------#
+
+  prowlarr:
+      image: lscr.io/linuxserver/prowlarr:latest
+      container_name: prowlarr
+      env_file:
+      - ./services/prowlarr/prowlarr.env  
+      volumes:
+        - ./volumes/prowlarr/data:/config
+      ports:
+        - 9696:9696
+      healthcheck:
+        test: ["CMD-SHELL", "curl -sL --fail http://localhost:9696/login || exit 1"]
+        interval: 30s
+        timeout: 10s
+        retries: 3
+        start_period: 60s        
+      labels:
+      - homepage.group=MEDIA
+      - homepage.name=prowlarr
+      - homepage.icon=prowlarr.png
+      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi4-red}.local:9696
+      - homepage.description= T indexer
+      networks:
+        private_network:
+          ipv4_address: 172.19.0.43 # internal address of prowler
+      restart: unless-stopped

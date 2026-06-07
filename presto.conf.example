@@ -1,0 +1,27 @@
+# =============================================================================
+#  presto.conf — Presto configuration
+#  Edit this file to customise your setup.
+#  Sourced by presto_launch.sh at startup.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+#  Docker network
+#  Change PRESTO_SUBNET if 172.19.0.0/24 clashes with your existing network.
+#  Common alternatives: 172.20.0.0/24  172.21.0.0/24  10.10.0.0/24
+# ---------------------------------------------------------------------------
+PRESTO_NETWORK_NAME="presto-network"
+PRESTO_SUBNET="172.19.0.0/24"
+
+# ---------------------------------------------------------------------------
+#  Stack
+#  PRESTO_COMPOSE_FILE — where the generated compose file is written.
+#  You rarely need to change this.
+# ---------------------------------------------------------------------------
+PRESTO_COMPOSE_FILE="$PRESTO_DIR/docker-compose.yml"
+
+# ---------------------------------------------------------------------------
+#  Backup
+#  rclone remote name and destination path on Google Drive.
+# ---------------------------------------------------------------------------
+RCLONE_REMOTE="gdrive"
+RCLONE_DEST="presto-backup"

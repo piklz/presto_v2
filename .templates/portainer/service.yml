@@ -1,0 +1,30 @@
+
+#---------------------------------------------------------------------#
+#    portainer - A frontend UI to manage your docker containers.      #
+#---------------------------------------------------------------------#
+  
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce
+    restart: unless-stopped
+    ports:
+      - 9000:9000
+      - 9443:9443
+    healthcheck:
+      test: ["CMD", "portainer", "--health-check"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s      
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./volumes/portainer/data:/data
+    labels:
+      - homepage.group=NETWORK
+      - homepage.name=portainer
+      - homepage.icon=portainer.png
+      - homepage.href=http://${HOST_URL}:9000
+      - homepage.description=docker manager
+    networks:
+      private_network:
+        ipv4_address: 172.19.0.28 # internal address of portainer

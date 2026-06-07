@@ -1,0 +1,31 @@
+  
+#---------------------------------------------------------------------#
+#    motioneye - A simple,security camera server.                     #
+#---------------------------------------------------------------------#
+  
+  motioneye:
+    #image: "ccrisan/motioneye:master-armhf" old ver for old pi's
+    #if on a pi and no motion is recorded > TRY codec on h264(mp4)(once a camera is added)
+    image: "ghcr.io/motioneye-project/motioneye:edge" #64bit pi's
+    container_name: "motioneye"
+    restart: unless-stopped
+    env_file:
+      - ./services/motioneye/motioneye.env    
+    ports:
+      - 8765:8765 
+      - 8081:8081
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8765"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s      
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./volumes/motioneye/etc_motioneye:/etc/motioneye
+      - ./volumes/motioneye/var/lib/motioneye:/var/lib/motioneye
+    devices:
+      - "/dev/video0:/dev/video0"
+    networks:
+      private_network:
+        ipv4_address: 172.19.0.38 # internal address of motioneye

@@ -1,0 +1,30 @@
+  
+#---------------------------------------------------------------------#
+#     ITTOOLS UI                                                     #
+#---------------------------------------------------------------------#  
+  
+  it-tools:
+    image: 'corentinth/it-tools:latest'
+    container_name: it-tools
+    env_file:
+      - ./services/ittools/ittools.env  
+    volumes:
+      - ./volumes/it-tools/config:/config
+    ports:
+      - 8282:80  # <Host Port>:<Container Port> incase of pihole or anything else web clash on port 80
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s  
+    labels:
+      - homepage.group=MEDIA
+      - homepage.name=it-tools
+      - homepage.icon=it-tools.png
+      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi4-red}.local:8282
+      - homepage.description= IT Tools library
+    networks:
+      private_network:
+        ipv4_address: 172.19.0.44 # internal address of ittools
+    restart: unless-stopped

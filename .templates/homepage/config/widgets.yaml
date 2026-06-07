@@ -1,0 +1,41 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/configs/service-widgets
+
+- resources:
+    cpu: true
+    memory: true
+    disk: /
+
+- search:
+    provider: duckduckgo
+    target: _blank
+
+- datetime:
+    text_size: xl
+    format:
+      timeStyle: short
+
+- greeting:
+    text_size: xl
+    text: Well Hello !
+
+- logo:
+    #icon: https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/I_Love_New_York.svg/1280px-I_Love_New_York.svg.png # optional
+    icon: https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/Coat_of_Arms_of_The_City_of_London.svg/1280px-Coat_of_Arms_of_The_City_of_London.svg.png
+#- openweathermap:
+#    latitude: 51.5085
+#    longitude: -0.1257
+#    units: metric
+#    cache: 15 # Time in minutes to cache API responses, to stay within limits
+#    provider: openweathermap
+
+- openmeteo:
+    label: London # optional
+    latitude: 51.50853
+    longitude: -0.12574
+    timezone: Europe/London # optional
+    units: metric # or imperial
+    cache: 5 # Time in minutes to cache API responses, to stay within limits
+    format: # optional, Intl.NumberFormat options
+      maximumFractionDigits: 1

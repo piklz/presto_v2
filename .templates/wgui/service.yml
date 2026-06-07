@@ -1,0 +1,58 @@
+
+#---------------------------------------------------------------------#
+#     WireGuard UI frontend                                           #
+#---------------------------------------------------------------------#
+
+  wgui:
+
+    image: ngoduykhanh/wireguard-ui:latest
+    container_name: wireguard-ui
+
+    depends_on:
+      wireguard:
+        condition: service_healthy
+    cap_add:
+      - NET_ADMIN
+    # Use the network of the 'wireguard' service
+    # This enables to show active clients in the status page
+    network_mode: service:wireguard
+    environment:
+      - SENDGRID_API_KEY
+      - EMAIL_FROM_ADDRESS
+      - EMAIL_FROM_NAME
+      - SESSION_SECRET
+      - WGUI_USERNAME=admin
+      - WGUI_PASSWORD=password
+      - WG_CONF_TEMPLATE
+      - WGUI_MANAGE_START=true
+      - WGUI_MANAGE_RESTART=true
+      - WGUI_SERVER_INTERFACE_ADDRESSES
+      - WGUI_DNS=172.19.0.3 #to point to the pihole or 1.1.1.1 if not going via pihole ip
+      - WGUI_DEFAULT_CLIENT_ALLOWED_IPS=192.168.1.0/24 , 172.19.0.3/32 
+      - WGUI_ENDPOINT_ADDRESS=${SYSTEM_HOSTNAME:-rpi4-red}.local #or your public domain name eg.  www.funnydomainname.com:51820
+      - WGUI_CONFIG_FILE_PATH=/etc/wireguard/wg_confs/wg0.conf # this is the missing link -add this here & the ui will find the new path 'wg_confs as set in this compose  paths and over write  wg_conf file!
+      - WGUI_SERVER_POST_UP_SCRIPT=iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE   # change wlan0 to match your own interface eg eth+ etc
+      - WGUI_SERVER_POST_DOWN_SCRIPT=iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE #
+
+    logging:
+      driver: json-file
+      options:
+        max-size: 50m
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-T", "10", "-O", "/dev/null", "http://localhost:5000/about"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    labels:
+      - homepage.group=NETWORK
+      - homepage.name=wireguard-ui
+      - homepage.icon=wireguard.png
+      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi4-red}.local:5000
+      - homepage.description= wireguard  ui
+    
+
+    volumes:
+      - ./volumes/wireguard-ui/db:/app/db
+      - ./volumes/wireguard/config/wg_confs:/etc/wireguard/wg_confs

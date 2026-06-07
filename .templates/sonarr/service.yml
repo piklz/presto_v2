@@ -1,0 +1,33 @@
+  
+#---------------------------------------------------------------------#
+#     SONARR UI                                                       #
+#---------------------------------------------------------------------# 
+  
+  sonarr:
+    image: linuxserver/sonarr
+    container_name: sonarr
+    env_file:
+      - ./services/sonarr/sonarr.env 
+    volumes:
+      - ./volumes/sonarr/data:/config
+        #modify below paths to your setups folders choices in portainer + pi/linux or mounted drives in 'fstab
+      - /media/YOUR-USB-DRIVE-PATH/TV:/tv
+      - /media/YOUR-USB-DRIVE-PATH/DOWNLOADS:/downloads
+    ports:
+      - 8989:8989
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8989/UI/Dashboard"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - homepage.group=MEDIA
+      - homepage.name=Sonarr
+      - homepage.icon=sonarr.png
+      - homepage.href=http://${HOST_URL}:8989
+      - homepage.description=tv sonarr  
+    networks:
+      private_network:
+        ipv4_address: 172.19.0.32 # internal address of sonarr
+    restart: unless-stopped

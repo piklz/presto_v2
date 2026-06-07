@@ -1,0 +1,24 @@
+
+#---------------------------------------------------------------------#
+#     UPTIME_KUMA monitoring service                                  #
+#---------------------------------------------------------------------#
+  
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./volumes/uptime-kuma:/app/data
+    ports:
+      - "3001:3001"  # <Host Port>:<Container Port>
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s      
+    restart: always
+    networks:
+      private_network:
+        ipv4_address: 172.19.0.34 # internal address of uptime-kuma
+    

@@ -1,0 +1,46 @@
+---
+# For configuration options and examples, please see:
+# https://gethomepage.dev/configs/settings
+
+title: Presto' Homepage
+#theme: dark
+#color: slate
+
+providers:
+  openweathermap: apikey here
+  #weatherapi: apikey here
+background:
+  #image:  https://images.unsplash.com/photo-1544111795-fe8b9def73f6?q=80 #nyc nighttime
+  image:  https://images.unsplash.com/photo-1587971758416-a5471af70f07?q=80 #city of london
+  #blur: sm # sm, "", md, xl... see https://tailwindcss.com/docs/backdrop-blur
+  saturate: 80 # 0, 50, 100... see https://tailwindcss.com/docs/backdrop-saturate
+  brightness: 50 # 0, 50, 75... see https://tailwindcss.com/docs/backdrop-brightness
+  opacity: 50 # 0-100
+
+ # heres some extras  for you to use
+#background: https://images.unsplash.com/photo-1587971758416-a5471af70f07?q=80                              #city of london                     
+#background: https://images.unsplash.com/photo-1544111795-fe8b9def73f6?q=80                                 #nyc nighttime
+#background: https://images.unsplash.com/photo-1512692723619-8b3e68365c9c?q=80                              #japan temple sunrise
+#background: https://images.unsplash.com/photo-1502790671504-542ad42d5189?auto=format&fit=crop&w=2560&q=80  # dessert
+#background: https://images.unsplash.com/photo-1682318607388-e920f58f02b1?q=80                              #japan night
+#background: https://images.unsplash.com/photo-1515780166631-d291bd3d3a6a?q=80                              #japan night neon meat
+#background: https://images.unsplash.com/photo-1540397532829-4b673cc67603?q=80                              #JAPAN PHOEN NIGHT
+#background: https://images.unsplash.com/photo-1670960671813-dd06c55b5411?q=80                              #japan night
+
+useEqualHeights: true
+
+layout:
+  Containers:
+    header: true
+    style: row
+    columns: 4
+  NETWORK:
+    header: true
+    style: row
+    columns: 4
+  MEDIA:
+    header: true
+    style: row
+    columns: 4
+
+showStats: true

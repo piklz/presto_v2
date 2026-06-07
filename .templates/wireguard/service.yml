@@ -1,0 +1,54 @@
+
+#---------------------------------------------------------------------#
+#     WireGuard VPN service                                           #
+#---------------------------------------------------------------------#
+  #dependant on pihole and with added ui to configure wg + set static ips for all apps in stack
+
+  # WireGuard VPN service
+  wireguard:
+    depends_on:
+      - pihole
+    image: linuxserver/wireguard:latest 
+    container_name: wireguard
+    cap_add:
+      - NET_ADMIN
+      #- SYS_MODULE
+    dns:
+      - 172.19.0.3 # internal pihole address we need to talk with for adblocking tomfoolery
+    volumes:
+      - ./volumes/wireguard/config:/config
+      - /lib/modules:/lib/modules
+    ports:
+      # Port for WireGuard-UI
+      - "5000:5000"
+      # Port of the WireGuard VPN server
+      - "51820:51820/udp"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      #- PEERS=1 #i have this to make the ui work or web wont boot cos it doesnt see it in the config dir?i dunno its all nonsense 
+      #- PEERS=2 #not so important as we use W-UI to config this but can be enabled if not using W-UI
+      - PEERDNS=172.19.0.3 # ip of pihole container  #PEERDNS=auto
+      - INTERNAL_SUBNET=10.252.1.0 #optional internal subnet vpn
+      - ALLOWEDIPS=172.19.0.0/24 # ,[..] or 0.0.0.0/0
+      #- SERVERURL=my.ddns.net #optional - For use with DDNS (Uncomment to use) you can add this in the cli>      #- PEERS=
+
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv6.conf.all.forwarding=1
+      - net.ipv6.conf.default.forwarding=1
+
+    restart: always
+
+    healthcheck:
+      test: stat /etc/passwd || exit 1
+      interval: 20s
+      timeout: 60s
+      retries: 3
+      start_period: 15s
+
+    networks:
+      private_network:
+        ipv4_address: 172.19.0.5 # internal address of wireguard

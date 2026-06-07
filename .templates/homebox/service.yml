@@ -1,0 +1,26 @@
+  
+#---------------------------------------------------------------------#
+#     Homebox                                                         #
+#---------------------------------------------------------------------#
+  homebox:
+    image: ghcr.io/sysadminsmedia/homebox:latest
+    container_name: homebox
+    restart: always
+    env_file:
+      - ./services/homebox/homebox.env      
+    volumes:
+      - ./volumes/homebox/homebox-data:/data/
+    ports:
+      - 3100:7745 
+      #caddy/TSmagicdns takes care of this now  on 443 and leaves this  unencrypted 
+      #backdoor 3100 out of the picture!but if you like it local as well leave it open 
+      #otherwise comment out the port section and use the caddy/TSmagicdns domain name to access it securely from outside your network
+    labels:
+      - homepage.group=OFFICE
+      - homepage.name=homebox
+      - homepage.icon=homebox.png
+      - homepage.href=http://${SYSTEM_HOSTNAME}:3100
+      - homepage.description=inventory manager     
+    networks:
+      private_network:
+        ipv4_address: 172.19.0.53 # internal address

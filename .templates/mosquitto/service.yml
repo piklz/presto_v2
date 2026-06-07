@@ -1,0 +1,36 @@
+  
+#---------------------------------------------------------------------#
+#     MOSQUITTO MQTT broker                                           #
+#---------------------------------------------------------------------#
+
+  mosquitto:
+      image: eclipse-mosquitto
+      container_name: mosquitto
+      env_file:
+      - ./services/mosquitto/mosquitto.env  
+      volumes: 
+      # Uses mosquitto.conf (inside .templates/mosquitto cp to the volumes config dir if you want to customize it)
+        - ./volumes/mosquitto/config/:/mosquitto/config/
+        - ./volumes/mosquitto/data:/mosquitto/data
+        - ./volumes/mosquitto/log:/mosquitto/log
+      ports:
+        - 1883:1883
+      healthcheck:
+      # Test command attempts to connect to the broker (localhost:1883) and publish a single, 
+      # empty message to a system topic. If successful, it exits 0 (Healthy).
+        test: ["CMD", "mosquitto_pub", "-h", "localhost", "-p", "1883", "-t", "$$SYS/test/health", "-m", "1", "-i", "healthcheck", "-r"]
+        interval: 30s
+        timeout: 10s
+        retries: 3
+        start_period: 5s # Reduced start period since Mosquitto starts fast
+
+      labels:
+      - homepage.group=NETWORK
+      - homepage.name=mosquitto
+      - homepage.icon=mosquitto.png
+      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi4-red}.local:1883
+      - homepage.description= MQTT Broker
+      networks:
+        private_network:
+          ipv4_address: 172.19.0.47 # internal address of mosquitto broker
+      restart: unless-stopped

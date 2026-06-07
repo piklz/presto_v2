@@ -1,0 +1,22 @@
+  
+#---------------------------------------------------------------------#
+#     caddy                                                           #
+#---------------------------------------------------------------------#  
+  
+  caddy:
+      image: caddy:latest
+      container_name: caddy
+      restart: always
+      ports:
+        - "80:80"
+        - "443:443"
+        - "8443:8443" # For Homebox
+      volumes:
+        - ./volumes/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+        - ./volumes/caddy/caddy_data:/data
+        - /var/run/tailscale/tailscaled.sock:/var/run/tailscale/tailscaled.sock:ro
+      depends_on:
+        - vaultwarden
+      networks:
+        private_network:
+          ipv4_address: 172.19.0.52

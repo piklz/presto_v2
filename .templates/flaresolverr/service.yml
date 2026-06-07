@@ -1,0 +1,22 @@
+  
+#---------------------------------------------------------------------#
+#     FLARESOLVERR UI                                                     #
+#---------------------------------------------------------------------#  
+  
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    ports:
+      - 8191:8191  # <Host Port>:<Container Port>
+    env_file:
+      - ./services/flaresolverr/flaresolverr.env   
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.settimeout(5); s.connect(('127.0.0.1', 8191)); s.close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      private_network:
+        ipv4_address: 172.19.0.54 # internal address of hiemdall
+    restart: unless-stopped
