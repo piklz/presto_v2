@@ -70,6 +70,13 @@ git_check_and_sync() {
     log_info "Created presto.conf from example — edit to customise network/backup settings"
   fi
 
+  # First-run: create root .env from example if not present
+  if [[ ! -f "$PRESTO_DIR/.env" && -f "$PRESTO_DIR/.env.example" ]]; then
+    cp "$PRESTO_DIR/.env.example" "$PRESTO_DIR/.env"
+    log_warn ".env created from example — EDIT IT NOW: nano $PRESTO_DIR/.env"
+    log_warn "Set SYSTEM_HOSTNAME, HOST_IP, and REMOTE_IP before starting your stack"
+  fi
+
   git fetch origin --quiet 2>/dev/null || true
   local behind
   behind=$(git rev-list --count HEAD..origin/main 2>/dev/null || echo 0)

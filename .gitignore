@@ -9,6 +9,7 @@ services/
 # User config — edit locally, don't commit
 # (presto.conf.example is committed; presto.conf is yours)
 presto.conf
+.env
 
 # Update notification state
 .update_notified

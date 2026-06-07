@@ -94,6 +94,17 @@ _build_stack() {
   check_disk_space 200 || return 1
   ui_header "Build Docker Stack"
 
+  # Warn if global .env hasn't been edited yet
+  local env_file="$PRESTO_DIR/.env"
+  if [[ ! -f "$env_file" ]]; then
+    ui_error "No .env file found at $PRESTO_DIR/.env\n\nRun presto_launch.sh first to auto-create it, then edit it."
+    return 1
+  fi
+  if grep -q "192\.168\.1\.x\|your-hostname\|your-remote-hostname" "$env_file"; then
+    ui_warn "Your .env file still has placeholder values.\nEdit it before starting your stack:\n\n  nano $env_file\n\nSet: SYSTEM_HOSTNAME, HOST_IP, REMOTE_HOSTNAME, REMOTE_IP"
+    ui_confirm "Continue building stack anyway?" || return 0
+  fi
+
   [[ -d "$TEMPLATES_DIR" ]] || {
     ui_error "Templates directory not found: $TEMPLATES_DIR\n\nRun '⬆️  Update Presto' to sync templates."
     return 1
