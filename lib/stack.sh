@@ -182,7 +182,7 @@ _generate_compose() {
 # Subnet  : ${PRESTO_SUBNET}
 
 networks:
-  presto_net:
+  private_network:
     name: "${PRESTO_NETWORK_NAME}"
     driver: bridge
     ipam:
