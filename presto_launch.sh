@@ -22,7 +22,7 @@ readonly REAL_USER USER_HOME
 readonly VERSION="2.0.0"
 readonly JOURNAL_TAG="presto"
 readonly PRESTO_REPO="https://github.com/piklz/presto.git"
-readonly PRESTO_DIR="$USER_HOME/presto"
+readonly PRESTO_DIR="$USER_HOME/presto_v2"
 readonly TEMPLATES_DIR="$PRESTO_DIR/.templates"
 readonly SERVICES_DIR="$PRESTO_DIR/services"
 readonly SCRIPTS_DIR="$PRESTO_DIR/scripts"
