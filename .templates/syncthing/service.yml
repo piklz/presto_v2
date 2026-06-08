@@ -33,4 +33,3 @@
       - homepage.description=syncthing backup
     networks:
       private_network:
-        ipv4_address: 172.19.0.35 # internal address of wireguard  

@@ -39,7 +39,6 @@
       - homepage.description= Immich photo library
     networks:
       private_network:
-        ipv4_address: 172.19.0.45 # internal address of immich
     restart: always   
     healthcheck:
       disable: false
@@ -61,7 +60,6 @@
       disable: false
     networks:
       private_network:
-        ipv4_address: 172.19.0.46 # internal address of immich
   redis:
     container_name: immich_redis
     image: docker.io/valkey/valkey:8-bookworm@sha256:a137a2b60aca1a75130022d6bb96af423fefae4eb55faf395732db3544803280
@@ -70,7 +68,6 @@
     restart: always
     networks:
         private_network:
-          ipv4_address: 172.19.0.47 # internal address of immich  redis
 
   database:
     container_name: immich_postgres
@@ -89,4 +86,3 @@
     restart: always
     networks:
         private_network:
-          ipv4_address: 172.19.0.48 # internal address of immich  database

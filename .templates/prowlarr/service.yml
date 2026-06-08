@@ -26,5 +26,4 @@
       - homepage.description= T indexer
       networks:
         private_network:
-          ipv4_address: 172.19.0.43 # internal address of prowler
       restart: unless-stopped

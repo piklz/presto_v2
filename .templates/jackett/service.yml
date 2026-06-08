@@ -28,5 +28,4 @@
       - homepage.description= Torrent indexer 
     networks:
       private_network:
-        ipv4_address: 172.19.0.22 # internal address of jackett
     

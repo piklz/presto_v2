@@ -37,4 +37,3 @@
       - homepage.description=ad blocker
     networks:
       private_network:
-        ipv4_address: 172.19.0.3 # internal address of pihole

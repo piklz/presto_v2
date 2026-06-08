@@ -17,5 +17,4 @@
       - no-new-privileges:true
     networks:
       private_network:
-        ipv4_address: 172.19.0.57 # internal address of docksentry
     restart: unless-stopped

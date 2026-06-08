@@ -40,6 +40,5 @@
       - homepage.description=notes manager    
     networks:
       private_network:
-        ipv4_address: 172.19.0.50 # internal address of trilium
     
  

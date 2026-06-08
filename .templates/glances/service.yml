@@ -33,4 +33,3 @@
       start_period: 30s
     networks:
       private_network:
-        ipv4_address: 172.19.0.39 # internal address of glances

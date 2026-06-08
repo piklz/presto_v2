@@ -25,4 +25,3 @@
       start_period: 40s
     networks:
       private_network:
-        ipv4_address: 172.19.0.42 # internal address of homepage

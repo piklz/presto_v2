@@ -29,4 +29,3 @@
       - homepage.description=song manager  
     networks:
       private_network:
-        ipv4_address: 172.19.0.24 # internal address of lidarr

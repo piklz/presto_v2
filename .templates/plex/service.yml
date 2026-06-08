@@ -47,5 +47,4 @@
       - homepage.description=media server/player
     networks:
       private_network:
-        ipv4_address: 172.19.0.27 # internal address of plex
 

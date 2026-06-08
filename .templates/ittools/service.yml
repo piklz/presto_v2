@@ -26,5 +26,4 @@
       - homepage.description= IT Tools library
     networks:
       private_network:
-        ipv4_address: 172.19.0.44 # internal address of ittools
     restart: unless-stopped

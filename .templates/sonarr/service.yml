@@ -29,5 +29,4 @@
       - homepage.description=tv sonarr  
     networks:
       private_network:
-        ipv4_address: 172.19.0.32 # internal address of sonarr
     restart: unless-stopped

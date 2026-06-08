@@ -41,4 +41,3 @@
       - homepage.description= Prestos x728 UPS hat monitor 
     networks:
       private_network:
-        ipv4_address: 172.19.0.49 # 

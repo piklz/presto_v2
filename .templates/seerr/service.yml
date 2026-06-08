@@ -27,5 +27,4 @@
       - homepage.description= media grabber 
     networks:
       private_network:
-        ipv4_address: 172.19.0.25 # internal address of overseer
     restart: unless-stopped

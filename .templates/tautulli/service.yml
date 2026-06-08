@@ -21,6 +21,5 @@
       start_period: 40s      
     networks:
       private_network:
-        ipv4_address: 172.19.0.33 # internal address of Tautilli
     
  

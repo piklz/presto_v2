@@ -33,7 +33,6 @@
       - homepage.description=media server/player
     networks:
       private_network:
-        ipv4_address: 172.19.0.23 # internal address of jellyfin 
     restart: unless-stopped 
     devices:
       - /dev/dri:/dev/dri #optional

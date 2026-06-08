@@ -32,5 +32,4 @@
       - homepage.description= MQTT Broker
       networks:
         private_network:
-          ipv4_address: 172.19.0.47 # internal address of mosquitto broker
       restart: unless-stopped

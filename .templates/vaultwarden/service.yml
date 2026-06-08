@@ -19,4 +19,3 @@
         - homepage.description=Password Manager      
     networks:
       private_network:
-        ipv4_address: 172.19.0.51

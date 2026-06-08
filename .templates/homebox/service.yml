@@ -23,4 +23,3 @@
       - homepage.description=inventory manager     
     networks:
       private_network:
-        ipv4_address: 172.19.0.53 # internal address

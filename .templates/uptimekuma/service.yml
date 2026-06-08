@@ -20,5 +20,4 @@
     restart: always
     networks:
       private_network:
-        ipv4_address: 172.19.0.34 # internal address of uptime-kuma
     

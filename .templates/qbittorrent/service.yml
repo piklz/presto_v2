@@ -32,4 +32,3 @@
       - homepage.description= Torrent Downloader
     networks:
       private_network:
-        ipv4_address: 172.19.0.29 # internal address of qbittorrent

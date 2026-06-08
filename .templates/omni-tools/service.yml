@@ -13,4 +13,3 @@
       - ./services/omni-tools/omni-tools.env
     networks:
         private_network:
-          ipv4_address: 172.19.0.56 # internal address of omni-tools

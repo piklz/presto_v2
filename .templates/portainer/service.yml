@@ -27,4 +27,3 @@
       - homepage.description=docker manager
     networks:
       private_network:
-        ipv4_address: 172.19.0.28 # internal address of portainer
