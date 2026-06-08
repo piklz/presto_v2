@@ -5,8 +5,9 @@
   
   prestoback:
     image: piklz/prestoback:latest 
-    container_name: prestoback
-    restart: unless-stopped
+    container_name: prestoback    
+    env_file:
+      - ./services/prestoback/prestoback.env  
     ports:
       - "8765:8765"
     volumes:
@@ -25,8 +26,7 @@
       - homepage.href=http://${SYSTEM_HOSTNAME:-rpi5-nas}.local:8765
       - homepage.description=container backup and restore utility
       - com.presto.app=prestoback
-    environment:
-      TZ: Europe/London 
+    restart: unless-stopped
     networks:
       private_network:         
 
