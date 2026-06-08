@@ -112,6 +112,7 @@ _build_stack() {
 
   local -a services
   mapfile -t services < <(_discover_services)
+  printf 'DEBUG: discovered %s service(s) in %s\n' "${#services[@]}" "$TEMPLATES_DIR" 1>&2
 
   if (( ${#services[@]} == 0 )); then
     ui_error "No services found in $TEMPLATES_DIR\n\nEnsure each template folder has meta.sh + service.yml"

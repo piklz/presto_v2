@@ -69,6 +69,13 @@ fi
 
 export PRESTO_NETWORK_NAME PRESTO_SUBNET PRESTO_COMPOSE_FILE RCLONE_REMOTE RCLONE_DEST
 
+echo "DEBUG: PRESTO_DIR=$PRESTO_DIR"
+echo "DEBUG: TEMPLATES_DIR=$TEMPLATES_DIR"
+echo "DEBUG: SERVICES_DIR=$SERVICES_DIR"
+echo "DEBUG: LIB_DIR=$LIB_DIR"
+echo "DEBUG: PRESTO_CONF=$PRESTO_CONF"
+echo "DEBUG: PRESTO_COMPOSE_FILE=$PRESTO_COMPOSE_FILE"
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
