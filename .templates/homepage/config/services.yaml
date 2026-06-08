@@ -21,7 +21,7 @@
         href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8989
         widget:
           type: sonarr
-          url: {{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8989
+          url: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8989
           key: {{HOMEPAGE_VAR_SONARR_KEY}}
           enableQueue: true # optional, defaults to false
     - Radarr:
