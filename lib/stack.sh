@@ -24,29 +24,19 @@ _discover_services() {
   while IFS= read -r -d '' meta; do
     svc_dir=$(dirname "$meta")
     svc_name=$(basename "$svc_dir")
-    printf 'DEBUG: found meta=%s svc_dir=%s svc_name=%s\n' "$meta" "$svc_dir" "$svc_name" 1>&2
 
-    if [[ ! -f "$svc_dir/service.yml" ]]; then
-      printf 'DEBUG: skipping %s because service.yml missing\n' "$svc_dir" 1>&2
-      continue
-    fi
+    [[ -f "$svc_dir/service.yml" ]] || continue
 
     local SERVICE_ARCH="all"
     # shellcheck source=/dev/null
-    if ! source "$meta" 2>/dev/null; then
-      printf 'DEBUG: failed to source %s\n' "$meta" 1>&2
-      continue
-    fi
+    source "$meta" 2>/dev/null || continue
 
     if [[ "$SERVICE_ARCH" != "all" ]]; then
       local ok=0
       for a in $SERVICE_ARCH; do
         [[ "$a" == "$current_arch" ]] && ok=1 && break
       done
-      (( ok )) || {
-        printf 'DEBUG: skipping %s due arch mismatch: %s != %s\n' "$svc_name" "$SERVICE_ARCH" "$current_arch" 1>&2
-        continue
-      }
+      (( ok )) || continue
     fi
 
     echo "$svc_name"
@@ -122,7 +112,6 @@ _build_stack() {
 
   local -a services
   mapfile -t services < <(_discover_services)
-  printf 'DEBUG: discovered %s service(s) in %s\n' "${#services[@]}" "$TEMPLATES_DIR" 1>&2
 
   if (( ${#services[@]} == 0 )); then
     ui_error "No services found in $TEMPLATES_DIR\n\nEnsure each template folder has meta.sh + service.yml"
