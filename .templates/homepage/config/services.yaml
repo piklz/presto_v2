@@ -22,7 +22,7 @@
         widget:
           type: sonarr
           url: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8989
-          key: {{HOMEPAGE_VAR_SONARR_KEY}}
+          key: "{{HOMEPAGE_VAR_SONARR_KEY}}"
           enableQueue: true # optional, defaults to false
     - Radarr:
         icon: radarr.svg
@@ -30,7 +30,7 @@
         widget:
           type: radarr
           url: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:7878
-          key: {{HOMEPAGE_VAR_RADARR_KEY}}
+          key: "{{HOMEPAGE_VAR_RADARR_KEY}}"
           enableQueue: true # optional, defaults to false
 
 
@@ -40,7 +40,7 @@
         widget:
           type: lidarr
           url: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8686
-          key: {{HOMEPAGE_VAR_LIDARR_KEY}}
+          key: "{{HOMEPAGE_VAR_LIDARR_KEY}}"
 
     - Jellyfin:
         icon: jellyfin.svg
@@ -48,7 +48,7 @@
         widget:
           type: jellyfin
           url: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8096
-          key: {{HOMEPAGE_VAR_JELLYFIN_KEY}}
+          key: "{{HOMEPAGE_VAR_JELLYFIN_KEY}}"
           enableBlocks: true # optional, defaults to false
           enableNowPlaying: true # optional, defaults to true
           enableUser: true # optional, defaults to false
@@ -62,8 +62,8 @@
         widget:
           type: qbittorrent
           url: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:15080
-          username: {{HOMEPAGE_VAR_QBITTORRENT_USERNAME}}
-          password: {{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}
+          username: "{{HOMEPAGE_VAR_QBITTORRENT_USERNAME}}"
+          password: "{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}"
 
     - Tautulli:
         icon: tautulli.svg
@@ -71,7 +71,7 @@
         widget:
           type: tautulli
           url: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8181
-          key: {{HOMEPAGE_VAR_TAUTULLI_KEY}}
+          key: "{{HOMEPAGE_VAR_TAUTULLI_KEY}}"
           enableUser: true # optional, defaults to false
           showEpisodeNumber: true # optional, defaults to false
           expandOneStreamToTwoRows: true # optional, defaults to true
@@ -98,7 +98,7 @@
         widget:
           type: jackett
           url: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:9117
-          password: {{HOMEPAGE_VAR_JACKETT_KEY}}
+          password: "{{HOMEPAGE_VAR_JACKETT_KEY}}"
 
     - Uptimekuma:
         icon: uptime-kuma.svg
@@ -107,8 +107,8 @@
           type: uptimekuma
           url: http://{{HOMEPAGE_VAR_APP_REMOTE_IP}}:3001
           slug: home
-          username: {{HOMEPAGE_VAR_UPTIMEKUMA_USERNAME}}
-          password: {{HOMEPAGE_VAR_UPTIMEKUMA_KEY}}
+          username: "{{HOMEPAGE_VAR_UPTIMEKUMA_USERNAME}}"
+          password: "{{HOMEPAGE_VAR_UPTIMEKUMA_KEY}}"
 
     - Motioneye:
         icon: motioneye.svg
