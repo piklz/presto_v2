@@ -27,6 +27,6 @@
       - com.presto.app=prestoback
     environment:
       TZ: Europe/London 
-    networks:                                                                                                                                                           │
+    networks:
       private_network:         
 
