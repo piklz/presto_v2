@@ -22,9 +22,11 @@
       - homepage.group=NETWORK
       - homepage.name=prestoback
       - homepage.icon=prestoback.png
-      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi5-nas}.local:8765  
-      - homepage.description=container backup and restore utility  
+      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi5-nas}.local:8765
+      - homepage.description=container backup and restore utility
+      - com.presto.app=prestoback
     environment:
-      TZ: Europe/London      
-    labels:
-      com.presto.app: prestoback
+      TZ: Europe/London 
+    networks:                                                                                                                                                           │
+      private_network:         
+
