@@ -1,24 +1,39 @@
-  
 #---------------------------------------------------------------------#
 #     prestoback                                                      #
-#---------------------------------------------------------------------#  
-  
+#---------------------------------------------------------------------#
   prestoback:
-    image: piklz/prestoback:latest 
-    container_name: prestoback    
+    image: piklz/prestoback:latest
+    container_name: prestoback
+    restart: unless-stopped
     env_file:
-      - ./services/prestoback/prestoback.env  
+      - ./services/prestoback/prestoback.env
     ports:
       - "8765:8765"
     volumes:
-      # READ-WRITE — restore must write files back into app config dirs
+      # All app config dirs — prestoback reads/writes these for backup & restore.
+      # Must be :rw so restore can overwrite files in place.
       - ./volumes:/volumes:rw
-      # PrestoBack data: config.json + backup archives + history
+      # PrestoBack's own data: config.json, backup archives, history.
+      # Bind-mount keeps it inside your existing ~/presto/volumes tree.
       - ./volumes/prestoback:/data
-      # Docker socket — required for container stop/start and self-update
+      # Docker socket — needed for container stop/start during backup/restore
+      # and for the self-update mechanism.
       - /var/run/docker.sock:/var/run/docker.sock
-      # SSH keys for remote push
+      # SSH keys for remote push (rsync over SSH).
+      # Comment out if you don't use remote push targets.
       - /home/pi/.ssh:/root/.ssh:ro
+    healthcheck:
+      # wget is available in the alpine runtime image.
+      test: ["CMD", "wget", "-qO-", "http://localhost:8765/api/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     labels:
       - homepage.group=NETWORK
       - homepage.name=prestoback
@@ -26,7 +41,6 @@
       - homepage.href=http://${SYSTEM_HOSTNAME:-rpi5-nas}.local:8765
       - homepage.description=container backup and restore utility
       - com.presto.app=prestoback
-    restart: unless-stopped
     networks:
-      private_network:         
+      private_network:   
 
