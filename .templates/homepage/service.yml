@@ -14,7 +14,7 @@
     ports:
       - 3000:3000
     volumes:
-      - ./volumes/homepage/config:/app/config # Make sure your local config directory exists
+      - ./${VOLUMES_DIR}/homepage/config:/app/config # Make sure your local config directory exists
       - /var/run/docker.sock:/var/run/docker.sock # optional, for docker integrations runs as root so PUID and PGID not needed if you want to see runing containers
     restart: unless-stopped
     healthcheck:

@@ -12,7 +12,7 @@
       - ./services/docksentry/docksentry.env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./volumes/docksentry/docksentry_data:/data
+      - ./${VOLUMES_DIR}/docksentry/docksentry_data:/data
     security_opt:
       - no-new-privileges:true
     networks:
