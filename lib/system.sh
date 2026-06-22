@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  lib/system.sh — Arch detection, disk, git, swap, log2ram, timezone
+#  lib/system.sh — Arch detection, disk, git, swap, log2ram, system tools
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -44,7 +44,11 @@ check_disk_space() {
 }
 
 # ---------------------------------------------------------------------------
-# Git — clone on first run, check for updates each launch
+# Git — clone on first run, check for updates each launch.
+#
+# PRESTO_UPDATE_AVAILABLE (0/1) drives whether the main menu shows
+# "Update Presto". .update_notified just throttles the one-time startup
+# nag so it doesn't repeat every launch while a commit is pending.
 # ---------------------------------------------------------------------------
 git_check_and_sync() {
   if ! command -v git &>/dev/null; then
@@ -67,7 +71,7 @@ git_check_and_sync() {
   # First-run: create presto.conf from example if not present
   if [[ ! -f "$PRESTO_DIR/presto.conf" && -f "$PRESTO_DIR/presto.conf.example" ]]; then
     cp "$PRESTO_DIR/presto.conf.example" "$PRESTO_DIR/presto.conf"
-    log_info "Created presto.conf from example — edit to customise network/backup settings"
+    log_info "Created presto.conf from example — edit to customise network settings"
   fi
 
   # First-run: create root .env from example if not present
@@ -78,13 +82,25 @@ git_check_and_sync() {
   fi
 
   git fetch origin --quiet 2>/dev/null || true
+  _update_status_refresh
+}
+
+# Compares HEAD to origin/main, sets PRESTO_UPDATE_AVAILABLE +
+# PRESTO_COMMITS_BEHIND, and fires the one-time nag the first time a
+# new commit is seen. Assumes the caller already did `git fetch`.
+_update_status_refresh() {
   local behind
   behind=$(git rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
+  PRESTO_COMMITS_BEHIND="$behind"
 
-  if (( behind > 0 )) && [[ ! -f "$PRESTO_DIR/.update_notified" ]]; then
-    ui_warn "Presto is ${behind} commit(s) behind.\nUse '⬆️  Update Presto' from the menu."
-    touch "$PRESTO_DIR/.update_notified"
-  elif (( behind == 0 )); then
+  if (( behind > 0 )); then
+    export PRESTO_UPDATE_AVAILABLE=1
+    if [[ ! -f "$PRESTO_DIR/.update_notified" ]]; then
+      ui_warn "Presto is ${behind} commit(s) behind.\nUse '⬆️  Update Presto' from the menu, or System Tools → Check for Presto updates."
+      touch "$PRESTO_DIR/.update_notified"
+    fi
+  else
+    export PRESTO_UPDATE_AVAILABLE=0
     rm -f "$PRESTO_DIR/.update_notified"
   fi
 }
@@ -119,10 +135,33 @@ git_do_update() {
   done < <(find "$TEMPLATES_DIR" -name "*.env.example" -print0 2>/dev/null)
 
   find "$SCRIPTS_DIR" -name "*.sh" -exec chmod +x {} + 2>/dev/null || true
+
+  export PRESTO_UPDATE_AVAILABLE=0
   rm -f "$PRESTO_DIR/.update_notified"
 
   log_info "Updated to $(git rev-parse --short HEAD)"
   ui_notify "Update Complete ✓" "Presto is up to date."
+}
+
+# Manual, always-available trigger — System Tools → Check for Presto updates.
+# Re-fetches regardless of the one-time-nag state, so it always gives a
+# fresh answer even if you already dismissed the startup notice.
+_check_for_updates_manual() {
+  check_disk_space 100 || return 1
+  cd "$PRESTO_DIR"
+  ui_header "Checking for Presto Updates"
+
+  run_cmd "Fetching from GitHub..." git fetch origin --quiet || {
+    ui_error "Could not reach GitHub.\nCheck your internet connection and try again."
+    return 1
+  }
+  _update_status_refresh
+
+  if [[ "${PRESTO_UPDATE_AVAILABLE}" -eq 1 ]]; then
+    ui_confirm "Presto is ${PRESTO_COMMITS_BEHIND} commit(s) behind. Update now?" && git_do_update
+  else
+    ui_notify "Up to date ✓" "Presto is already on the latest version."
+  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -132,16 +171,24 @@ system_tools_menu() {
   local choice
   choice=$(gum choose \
     --header "🛠  System Tools" \
-    "Disable swap" \
-    "Set swappiness to 0" \
-    "Install log2ram" \
+    "🔄  Check for Presto updates" \
+    "📊  Quick resource snapshot" \
+    "📦  Check & apply OS updates (apt)" \
+    "🧹  Docker system prune (all-in-one)" \
+    "💤  Disable swap" \
+    "🎚   Set swappiness to 0" \
+    "📂  Install log2ram" \
     "← Back" \
   ) || return 0
 
   case "$choice" in
-    *"swap"*)      _disable_swap ;;
-    *"swappiness"*) _set_swappiness ;;
-    *"log2ram"*)   _install_log2ram ;;
+    *"Presto updates"*) _check_for_updates_manual ;;
+    *"snapshot"*)        _resource_snapshot ;;
+    *"OS updates"*)      _check_apt_updates ;;
+    *"system prune"*)    _docker_system_prune ;;
+    *"Disable swap"*)    _disable_swap ;;
+    *"swappiness"*)      _set_swappiness ;;
+    *"log2ram"*)         _install_log2ram ;;
   esac
 }
 
@@ -178,6 +225,59 @@ _install_log2ram() {
   (cd "$tmp/log2ram-master" && sudo ./install.sh)
   rm -rf "$tmp"
   ui_notify "log2ram installed ✓" "Reboot to activate."
+}
+
+# Check apt's upgradable package list and let the user choose to apply it.
+_check_apt_updates() {
+  ui_confirm "Check for OS package updates? (sudo apt update)" || return 0
+  run_cmd "Checking for updates..." sudo apt-get update -qq
+
+  local count
+  count=$(apt list --upgradable 2>/dev/null | grep -vc "^Listing...")
+
+  if (( count == 0 )); then
+    ui_notify "Up to date ✓" "No package updates available."
+    return 0
+  fi
+
+  ui_warn "${count} package(s) can be upgraded."
+  ui_confirm "Apply updates now? (sudo apt upgrade -y)" || return 0
+  run_cmd "Upgrading packages..." sudo apt-get upgrade -y
+  ui_notify "Done ✓" "${count} package(s) upgraded.\n\nReboot if a kernel or firmware update was included."
+}
+
+# At-a-glance load/memory/disk/temp — no scrolling logs, just the headline numbers.
+_resource_snapshot() {
+  local load mem disk temp
+  load=$(uptime | awk -F'load average:' '{print $2}' | xargs)
+  mem=$(free -h | awk '/^Mem:/{print $3" / "$2" used"}')
+  disk=$(df -h "$PRESTO_DIR" | awk 'NR==2{print $3" / "$2" used ("$5")"}')
+
+  if command -v vcgencmd &>/dev/null; then
+    temp=$(vcgencmd measure_temp | sed 's/temp=//')
+  elif [[ -r /sys/class/thermal/thermal_zone0/temp ]]; then
+    temp="$(( $(cat /sys/class/thermal/thermal_zone0/temp) / 1000 ))°C"
+  else
+    temp="n/a"
+  fi
+
+  gum style \
+    --border rounded --border-foreground 212 --padding "1 2" \
+    "$(gum style --bold --foreground 212 "📊  System Snapshot")" \
+    "" \
+    "Load avg : ${load}" \
+    "Memory   : ${mem}" \
+    "Disk     : ${disk}  (${PRESTO_DIR})" \
+    "Temp     : ${temp}"
+  gum input --placeholder "  Press Enter to continue..." --char-limit 0 >/dev/null 2>&1 || true
+}
+
+# Full docker system prune — broader than the per-resource prune scripts in
+# Docker Commands, so it gets an explicit warning before running.
+_docker_system_prune() {
+  ui_warn "This removes ALL unused containers, images, networks, build cache,\nand volumes — not just dangling ones. Anything not attached to a\nrunning container will be deleted."
+  ui_confirm "Continue with full Docker system prune?" || return 0
+  _run_script "prune-system.sh" "Docker system pruned"
 }
 
 # ---------------------------------------------------------------------------

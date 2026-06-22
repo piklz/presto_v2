@@ -30,13 +30,23 @@ log_error() { log_message "ERROR"   "$*"; }
 log_debug() { log_message "DEBUG"   "$*"; }
 
 # run_cmd "Label shown in spinner" cmd [args...]
+#
+# Output is hidden behind the spinner by default. Pass --show-install (-s)
+# on the presto CLI to reveal full command output for every run_cmd call
+# in the session — handy for debugging or just watching what's happening.
 run_cmd() {
   local label="$1"; shift
   log_debug "run_cmd: $*"
-  if command -v gum &>/dev/null; then
-    gum spin --spinner dot --title "$label" -- "$@"
-  else
+
+  if ! command -v gum &>/dev/null; then
     echo "→ $label"
     "$@"
+    return $?
+  fi
+
+  if [[ "${SHOW_INSTALL:-0}" -eq 1 ]]; then
+    gum spin --spinner dot --title "$label" --show-output -- "$@"
+  else
+    gum spin --spinner dot --title "$label" -- "$@"
   fi
 }

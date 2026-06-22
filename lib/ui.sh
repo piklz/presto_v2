@@ -4,6 +4,34 @@
 # =============================================================================
 
 # ---------------------------------------------------------------------------
+# Bootstrap-only quiet runner (used before gum exists, so no spinner yet).
+# Hides command output by default; always shows it on failure, and always
+# shows it when SHOW_INSTALL=1 (set via --show-install on the presto CLI).
+# ---------------------------------------------------------------------------
+_bootstrap_run() {
+  local label="$1"; shift
+
+  if [[ "${SHOW_INSTALL:-0}" -eq 1 ]]; then
+    echo "  → $label"
+    "$@"
+    return $?
+  fi
+
+  echo "  → $label"
+  local log; log=$(mktemp)
+  if "$@" >"$log" 2>&1; then
+    rm -f "$log"
+    return 0
+  fi
+
+  local rc=$?
+  echo "  ✗ $label failed — output:"
+  cat "$log"
+  rm -f "$log"
+  return "$rc"
+}
+
+# ---------------------------------------------------------------------------
 # Install gum if missing (runs once, silently thereafter)
 # ---------------------------------------------------------------------------
 ui_check_gum() {
@@ -13,32 +41,35 @@ ui_check_gum() {
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo "  presto needs 'gum' for its UI (one-time install)"
   echo "  https://github.com/charmbracelet/gum"
+  [[ "${SHOW_INSTALL:-0}" -eq 0 ]] && \
+    echo "  (re-run with --show-install to see full output)"
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   read -r -p "  Install gum now? [Y/n]: " _ans
   [[ "${_ans,,}" == "n" ]] && { echo "gum is required. Exiting."; exit 1; }
 
   if grep -qiE "debian|ubuntu|raspbian" /etc/os-release 2>/dev/null; then
-    log_info "Installing gum via apt (Charm repo)..."
+    echo "[presto] Installing gum via apt (Charm repo)..."
     sudo mkdir -p /etc/apt/keyrings
-    curl -fsSL https://repo.charm.sh/apt/gpg.key \
-      | sudo gpg --yes --dearmor -o /etc/apt/keyrings/charm.gpg
+    _bootstrap_run "Fetching Charm GPG key" bash -c \
+      'curl -fsSL https://repo.charm.sh/apt/gpg.key | sudo gpg --yes --dearmor -o /etc/apt/keyrings/charm.gpg' \
+      || { log_error "gum install failed"; exit 1; }
     echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" \
       | sudo tee /etc/apt/sources.list.d/charm.list >/dev/null
-    sudo apt-get update -q && sudo apt-get install -y gum
+    _bootstrap_run "Updating apt"   sudo apt-get update -q      || { log_error "gum install failed"; exit 1; }
+    _bootstrap_run "Installing gum" sudo apt-get install -y gum || { log_error "gum install failed"; exit 1; }
   else
-    log_info "Installing gum binary..."
-    local arch tmp
-    arch=$(uname -m)
-    tmp=$(mktemp -d)
-    case "$arch" in
+    echo "[presto] Installing gum binary..."
+    local gum_arch tmp
+    case "$(uname -m)" in
       aarch64|arm64) gum_arch="arm64" ;;
       armv7l)        gum_arch="armv7" ;;
       x86_64)        gum_arch="amd64" ;;
-      *)  log_error "Unsupported arch: $arch"; exit 1 ;;
+      *) log_error "Unsupported arch: $(uname -m)"; exit 1 ;;
     esac
-    curl -fsSL \
-      "https://github.com/charmbracelet/gum/releases/latest/download/gum_Linux_${gum_arch}.tar.gz" \
-      | tar -xz -C "$tmp"
+    tmp=$(mktemp -d)
+    _bootstrap_run "Downloading gum (${gum_arch})" bash -c \
+      "curl -fsSL 'https://github.com/charmbracelet/gum/releases/latest/download/gum_Linux_${gum_arch}.tar.gz' | tar -xz -C '${tmp}'" \
+      || { rm -rf "$tmp"; log_error "gum install failed"; exit 1; }
     sudo install -m 0755 "$tmp/gum" /usr/local/bin/gum
     rm -rf "$tmp"
   fi
@@ -104,13 +135,14 @@ ui_about() {
   gum input --placeholder "  Press Enter to continue..." --char-limit 0 >/dev/null 2>&1 || true
 }
 
-# Returns: none | env | full
+# Returns: none | service | env | full
 ui_pick_overwrite_mode() {
   local name="$1"
   gum choose \
-    --header "'${name}' already exists — pick mode:" \
-    "none — Keep everything as-is" \
-    "env  — Re-sync template, preserve .env + .conf files" \
-    "full — Full fresh template (overwrites all)" \
+    --header "'${name}' already exists — what do you want to update?" \
+    "none     — Keep everything as-is" \
+    "service  — Update service.yml only  (image / ports changed upstream)" \
+    "env      — Update service.yml, keep .env and volume configs" \
+    "full     — Full fresh sync from template  ⚠  overwrites .env" \
   | awk '{print $1}'
 }

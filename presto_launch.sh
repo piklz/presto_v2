@@ -19,7 +19,7 @@ else
 fi
 
 readonly REAL_USER USER_HOME
-readonly VERSION="2.0.0"
+readonly VERSION="2.1.0"
 readonly JOURNAL_TAG="presto"
 readonly PRESTO_REPO="https://github.com/piklz/presto_v2.git"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -43,7 +43,7 @@ fi
 # ---------------------------------------------------------------------------
 # Source libs
 # ---------------------------------------------------------------------------
-for _lib in log ui system docker stack backup; do
+for _lib in log ui system docker stack; do
   # shellcheck source=/dev/null
   source "$LIB_DIR/${_lib}.sh" || { echo "ERROR: missing lib/${_lib}.sh"; exit 1; }
 done
@@ -64,22 +64,29 @@ fi
 : "${PRESTO_NETWORK_NAME:=presto-network}"
 : "${PRESTO_SUBNET:=172.19.0.0/24}"
 : "${PRESTO_COMPOSE_FILE:=$PRESTO_DIR/docker-compose.yml}"
-: "${RCLONE_REMOTE:=gdrive}"
-: "${RCLONE_DEST:=presto-backup}"
 
-export PRESTO_NETWORK_NAME PRESTO_SUBNET PRESTO_COMPOSE_FILE RCLONE_REMOTE RCLONE_DEST
+export PRESTO_NETWORK_NAME PRESTO_SUBNET PRESTO_COMPOSE_FILE
 
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 VERBOSE=0
+SHOW_INSTALL=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --verbose|-v) VERBOSE=1 ;;
+    --verbose|-v)      VERBOSE=1 ;;
+    --show-install|-s) SHOW_INSTALL=1 ;;
     --help|-h)
       cat <<EOF
 presto v${VERSION}
-Usage: ./presto_launch.sh [--verbose] [--help]
+Usage: ./presto_launch.sh [--verbose] [--show-install] [--help]
+
+  --verbose, -v        Verbose internal logging (DEBUG level)
+  --show-install, -s   Show full output of background installs
+                        (gum, Docker, log2ram, etc.) instead of a
+                        quiet spinner. Output is always shown on
+                        failure regardless of this flag.
+
 Logs:  journalctl -t ${JOURNAL_TAG} [-f]
 EOF
       exit 0 ;;
@@ -87,7 +94,7 @@ EOF
   esac
   shift
 done
-export VERBOSE
+export VERBOSE SHOW_INSTALL
 
 # ---------------------------------------------------------------------------
 # Startup
@@ -99,31 +106,37 @@ git_check_and_sync
 # Main menu
 # ---------------------------------------------------------------------------
 while true; do
+  menu_items=(
+    "📦  Build / Manage Stack"
+    "🐳  Docker Commands"
+  )
+  # Only show the update item when we actually know we're behind origin/main.
+  [[ "${PRESTO_UPDATE_AVAILABLE:-0}" -eq 1 ]] && \
+    menu_items+=("⬆️   Update Presto  (update available)")
+  menu_items+=(
+    "⬆️   Update Docker Images"
+    "🔧  Install Docker + Compose"
+    "🛠   System Tools"
+    "🧩  Install Presto-Tools"
+    "ℹ️   About"
+    "❌  Exit"
+  )
+
   choice=$(gum choose \
     --header "🚀  PRESTO  v${VERSION}  —  Docker Stack Manager" \
     --header.foreground="212" \
-    "📦  Build / Manage Stack" \
-    "🐳  Docker Commands" \
-    "⬆️   Update Presto" \
-    "⬆️   Update Docker Images" \
-    "🔧  Install Docker + Compose" \
-    "🛠   System Tools" \
-    "💾  Backup / Restore" \
-    "🧩  Install Presto-Tools" \
-    "ℹ️   About" \
-    "❌  Exit" \
+    "${menu_items[@]}" \
   ) || { log_info "Bye!"; exit 0; }
 
   case "$choice" in
-    *"Build"*)           stack_menu ;;
-    *"Docker Commands"*) docker_commands_menu ;;
-    *"Update Presto"*)   git_do_update ;;
-    *"Docker Images"*)   docker_compose_update ;;
-    *"Install Docker"*)  docker_install_menu ;;
-    *"System Tools"*)    system_tools_menu ;;
-    *"Backup"*)          backup_menu ;;
-    *"Presto-Tools"*)    presto_tools_install ;;
-    *"About"*)           ui_about ;;
-    *"Exit"*)            log_info "Bye!"; exit 0 ;;
+    *"Build"*)            stack_menu ;;
+    *"Docker Commands"*)  docker_commands_menu ;;
+    *"Update Presto"*)    git_do_update ;;
+    *"Docker Images"*)    docker_compose_update ;;
+    *"Install Docker"*)   docker_install_menu ;;
+    *"System Tools"*)     system_tools_menu ;;
+    *"Presto-Tools"*)     presto_tools_install ;;
+    *"About"*)            ui_about ;;
+    *"Exit"*)             log_info "Bye!"; exit 0 ;;
   esac
 done
