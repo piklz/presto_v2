@@ -16,3 +16,8 @@
     - YouTube:
         - abbr: YT
           href: https://youtube.com/
+
+- INTERNET:
+    - google:
+        - abbr: G
+          href: https://google.com/
