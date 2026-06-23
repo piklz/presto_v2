@@ -64,8 +64,19 @@ fi
 : "${PRESTO_NETWORK_NAME:=presto-network}"
 : "${PRESTO_SUBNET:=172.19.0.0/24}"
 : "${PRESTO_COMPOSE_FILE:=$PRESTO_DIR/docker-compose.yml}"
+: "${PRESTO_VOLUMES_DIR:=$PRESTO_DIR/volumes}"
 
-export PRESTO_NETWORK_NAME PRESTO_SUBNET PRESTO_COMPOSE_FILE
+# Resolve PRESTO_VOLUMES_DIR to an absolute path.
+# presto.conf may set a bare relative value ("volumes") for brevity — bash
+# file ops need absolute paths, so we anchor relative values to $PRESTO_DIR.
+# Absolute paths (starting with /) are left unchanged.
+if [[ "${PRESTO_VOLUMES_DIR}" != /* ]]; then
+  PRESTO_VOLUMES_DIR="$PRESTO_DIR/${PRESTO_VOLUMES_DIR}"
+fi
+# Canonicalise away any ./ or double-slashes without requiring the dir to exist yet.
+PRESTO_VOLUMES_DIR="$(realpath -m "$PRESTO_VOLUMES_DIR")"
+
+export PRESTO_NETWORK_NAME PRESTO_SUBNET PRESTO_COMPOSE_FILE PRESTO_VOLUMES_DIR
 
 # ---------------------------------------------------------------------------
 # CLI

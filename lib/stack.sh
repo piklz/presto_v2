@@ -493,7 +493,7 @@ _seed_volume_configs() {
   [[ -z "$configs" ]] && return 0
 
   local tmpl="$TEMPLATES_DIR/$svc"
-  local vol_dir="$PRESTO_DIR/volumes/$svc"
+  local vol_dir="${PRESTO_VOLUMES_DIR}/${svc}"
   local -a seeded=() skipped=()
 
   for cfg in $configs; do
