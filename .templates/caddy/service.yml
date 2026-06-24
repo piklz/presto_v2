@@ -17,5 +17,10 @@
         - /var/run/tailscale/tailscaled.sock:/var/run/tailscale/tailscaled.sock:ro
       depends_on:
         - vaultwarden
+      labels:
+      - homepage.group=OFFICE
+      - homepage.name=caddy
+      - homepage.icon=caddy.png
+      - homepage.description=reverse proxy 
       networks:
         private_network:
