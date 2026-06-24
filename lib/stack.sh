@@ -148,14 +148,35 @@ _extract_host_ports() {
     | tr -d '":'
 }
 
+# Returns the container name(s) holding a given host port, or empty string.
+# Uses docker inspect so we only see ports owned by named containers, not the
+# host process underneath (which ss would show even for running containers).
+_port_owned_by_container() {
+  local port="$1"
+  docker ps --format '{{.Names}} {{.Ports}}' 2>/dev/null     | grep -oP "(?<=^|,)\S+(?=->)"     | grep -qE "(^|:)${port}$" &&   docker ps --format '{{.Names}} {{.Ports}}' 2>/dev/null     | awk -v p=":${port}->" '$0 ~ p {print $1}'
+}
+
 _port_in_use() {
   # ss column 5 is local address:port; grep for exact port boundary
-  ss -tulpn 2>/dev/null | awk 'NR>1{print $5}' | grep -qE '(^|:)'"$1"'$'
+  ss -tulpn 2>/dev/null | awk 'NR>1{print $5}' | grep -qE "(^|:)$1$"
 }
 
 _check_port_conflicts() {
   local -a services=("$@")
   local -a conflicts=()
+
+  # Build a lookup of container names for the selected services so we can
+  # skip ports that are already held by a container we are about to replace.
+  # Container name defaults to service name but may be overridden in service.yml.
+  declare -A owned_containers=()
+  for svc in "${services[@]}"; do
+    local yml="$TEMPLATES_DIR/$svc/service.yml"
+    [[ -f "$yml" ]] || continue
+    # Extract explicit container_name if set, otherwise fall back to service name
+    local cname
+    cname=$(grep -oP "(?<=container_name:\s{0,10})\S+" "$yml" 2>/dev/null | head -1)
+    owned_containers["${cname:-$svc}"]=1
+  done
 
   for svc in "${services[@]}"; do
     local yml="$TEMPLATES_DIR/$svc/service.yml"
@@ -165,15 +186,27 @@ _check_port_conflicts() {
     while IFS= read -r host_port; do
       [[ -z "$host_port" ]] && continue
 
+      _check_single_port() {
+        local p="$1" s="$2"
+        _port_in_use "$p" || return 0
+        # Port is in use — find out which container holds it
+        local holder
+        holder=$(docker ps --format "{{.Names}} {{.Ports}}" 2>/dev/null           | awk -v pat=":${p}->" '$0 ~ pat {print $1}' | head -1)
+        # If the holder is one of our selected services, it will be replaced —
+        # not a real conflict, skip silently
+        if [[ -n "$holder" && -v "owned_containers[$holder]" ]]; then
+          log_debug "[$s] port $p held by own container ($holder) — will be replaced, skipping"
+          return 0
+        fi
+        conflicts+=("${s}: port ${p}${holder:+ (held by: $holder)}")
+      }
+
       if [[ "$host_port" == *-* ]]; then
-        # Expand range
         local start="${host_port%-*}" end="${host_port#*-}"
         local p
-        for (( p=start; p<=end; p++ )); do
-          _port_in_use "$p" && conflicts+=("${svc}: port ${p}")
-        done
+        for (( p=start; p<=end; p++ )); do _check_single_port "$p" "$svc"; done
       else
-        _port_in_use "$host_port" && conflicts+=("${svc}: port ${host_port}")
+        _check_single_port "$host_port" "$svc"
       fi
     done < <(_extract_host_ports "$yml")
   done
