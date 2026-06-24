@@ -15,8 +15,6 @@
         - ${VOLUMES_DIR}/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
         - ${VOLUMES_DIR}/caddy/caddy_data:/data
         - /var/run/tailscale/tailscaled.sock:/var/run/tailscale/tailscaled.sock:ro
-      depends_on:
-        - vaultwarden
       labels:
       - homepage.group=OFFICE
       - homepage.name=caddy
