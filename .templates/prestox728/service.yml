@@ -1,0 +1,43 @@
+    
+#---------------------------------------------------------------------#
+#     presto x728 UPS hat ui monitor tool                             #
+#---------------------------------------------------------------------#
+
+  presto_x728:
+    image: piklz/presto_x728
+    container_name: presto_x728
+    #depends_on:
+    #  mosquitto:
+    #    condition: service_healthy
+    env_file:
+      - ./services/prestox728/prestox728.env  
+    ports:
+      - "7728:7728"
+    privileged: true
+    user: "0:0"  # Run as root for device access
+    cap_add:
+      - SYS_RAWIO
+      - NET_BIND_SERVICE
+      - ALL
+    volumes:
+      - /dev:/dev
+      - /sys:/sys:ro
+      - /sys/class/thermal/thermal_zone0/temp:/sys/class/thermal/thermal_zone0/temp:ro
+      - /proc/uptime:/proc/uptime
+      - /:/host:ro
+      - ${VOLUMES_DIR}/presto_x728/config:/config
+    devices:
+      - /dev/gpiochip0:/dev/gpiochip0
+      - /dev/gpiochip4:/dev/gpiochip4
+      - /dev/i2c-1:/dev/i2c-1
+    restart: unless-stopped
+    pid: host
+    command: ["gunicorn", "--bind", "0.0.0.0:7728", "--workers", "1", "--worker-class", "gevent", "--timeout", "120", "presto_x728_sysmon:app"]
+    labels:
+      - homepage.group=NETWORK
+      - homepage.name=Presto-x728
+      - homepage.icon=python.png
+      - homepage.href=http://${SYSTEM_HOSTNAME}.local:7728
+      - homepage.description= Prestos x728 UPS hat monitor 
+    networks:
+      private_network:
