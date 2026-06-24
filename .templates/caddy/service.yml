@@ -12,8 +12,8 @@
         - "443:443"
         - "8443:8443" # For Homebox
       volumes:
-        - ./${VOLUMES_DIR}/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-        - ./${VOLUMES_DIR}/caddy/caddy_data:/data
+        - ${VOLUMES_DIR}/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+        - ${VOLUMES_DIR}/caddy/caddy_data:/data
         - /var/run/tailscale/tailscaled.sock:/var/run/tailscale/tailscaled.sock:ro
       depends_on:
         - vaultwarden
