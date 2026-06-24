@@ -38,7 +38,7 @@
       - homepage.group=NETWORK
       - homepage.name=prestoback
       - homepage.icon=prestoback.png
-      - homepage.href=http://${SYSTEM_HOSTNAME%.local}.local:8765
+      - homepage.href=http://${SYSTEM_HOSTNAME}.local:8765
       - homepage.description=container backup and restore utility
       - com.presto.app=prestoback
     networks:

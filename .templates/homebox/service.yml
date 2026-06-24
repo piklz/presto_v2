@@ -19,7 +19,7 @@
       - homepage.group=OFFICE
       - homepage.name=homebox
       - homepage.icon=homebox.png
-      - homepage.href=http://${SYSTEM_HOSTNAME%.local}.local:3100
+      - homepage.href=http://${SYSTEM_HOSTNAME}.local:3100
       - homepage.description=inventory manager     
     networks:
       private_network:
