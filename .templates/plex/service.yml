@@ -1,0 +1,49 @@
+#---------------------------------------------------------------------#
+#     PLEX                                                            #
+#---------------------------------------------------------------------#  
+  
+  plex:
+    image: ghcr.io/linuxserver/plex:latest
+    #image: ghcr.io/linuxserver/plex:bionic
+    container_name: plex
+    #network_mode: host
+    env_file:
+      - ./services/plex/plex.env      
+    ports:
+      - '32400:32400'
+      - '3005:3005'
+      - '8324:8324'
+      - '32469:32469'
+      - '1900:1900/udp'
+      - '32410:32410/udp'
+      - '32412:32412/udp'
+      - '32413:32413/udp'
+      - '32414:32414/udp'
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:32400/identity || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s      
+    volumes:
+      - ${VOLUMES_DIR}/plex/config:/config
+      #- ./media/tvshows:/tv
+      #- ./media/movies:/movies
+      # modify below to match your setups folder choices
+      - /media/YOUR-USB-DRIVE-PATH/data:/data
+      - /media/YOUR-USB-DRIVE-PATH/DOWNLOADS/transcode:/data/transcode
+      - /media/YOUR-USB-DRIVE-PATH/TV:/data/tvshows      
+      - /media/YOUR-USB-DRIVE-PATH/MOVIES:/data/movies
+      - /media/YOUR-USB-DRIVE-PATH/MUSIC:/data/music
+      - /media/YOUR-USB-DRIVE-PATH/AUDIOBOOKS:/data/audiobooks
+      - /opt/vc/lib:/opt/vc/lib #optional
+    restart: unless-stopped
+    labels:
+      - homepage.group=MEDIA
+      - homepage.name=plex
+      - homepage.icon=plex.png
+      - homepage.href=http://${SYSTEM_HOSTNAME}.local:32400
+      - homepage.description=media server/player
+    networks:
+      private_network:
+

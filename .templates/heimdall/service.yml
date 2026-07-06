@@ -1,0 +1,24 @@
+#---------------------------------------------------------------------#
+#     HEIMDALL UI                                                     #
+#---------------------------------------------------------------------#  
+  
+  heimdall:
+    image: lscr.io/linuxserver/heimdall:latest
+    container_name: heimdall
+    env_file:
+      - ./services/heimdall/heimdall.env
+    volumes:
+      - ${VOLUMES_DIR}/heimdall/config:/config
+    ports:
+      - 82:80  # <Host Port>:<Container Port> incase of pihole or anything else web clash on port 80
+      - 443:443
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      private_network:
+        # ipv4_address line removed as requested
+    restart: unless-stopped

@@ -8,7 +8,7 @@
     env_file:
       - ./services/prestoback/prestoback.env
     ports:
-      - "8765:8765"
+      - "8778:8778"
     volumes:
       # All app config dirs — prestoback reads/writes these for backup & restore.
       # Must be :rw so restore can overwrite files in place.
@@ -18,13 +18,12 @@
       - ${VOLUMES_DIR}/prestoback:/data
       # Docker socket — needed for container stop/start during backup/restore
       # and for the self-update mechanism.
-      - /var/run/docker.sock:/var/run/docker.sock
-      # SSH keys for remote push (rsync over SSH).
-      # Comment out if you don't use remote push targets.
-      - /home/pi/.ssh:/root/.ssh:ro
+      - /var/run/docker.sock:/var/run/docker.sock      
+      # PrestoBack's accses to compose stack
+      - /home/pi/presto:/home/pi/presto:ro
     healthcheck:
       # wget is available in the alpine runtime image.
-      test: ["CMD", "wget", "-qO-", "http://localhost:8765/api/status"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8778/api/status"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -35,10 +34,10 @@
         max-size: "10m"
         max-file: "3"
     labels:
-      - homepage.group=NETWORK
+      - homepage.group=SYSTEM
       - homepage.name=prestoback
       - homepage.icon=prestoback.png
-      - homepage.href=http://${SYSTEM_HOSTNAME}.local:8765
+      - homepage.href=http://${SYSTEM_HOSTNAME}.local:8778
       - homepage.description=container backup and restore utility
       - com.presto.app=prestoback
     networks:

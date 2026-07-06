@@ -1,0 +1,36 @@
+  
+#---------------------------------------------------------------------#
+#     SYNCTHING UI                                                    #
+#---------------------------------------------------------------------# 
+  
+  syncthing:
+    image: lscr.io/linuxserver/syncthing:latest
+    container_name: syncthing
+    hostname: syncthing #optional
+    env_file:
+      - ./services/syncthing/syncthing.env
+    volumes:
+      - ./volumes/syncthing/config:/config
+      - /media/32GUSB/data1:/data1
+      - /media/32GUSB/data2:/data2
+    ports:
+      - 8384:8384
+      - 22000:22000/tcp
+      - 22000:22000/udp
+      - 21027:21027/udp
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8384"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s      
+    restart: unless-stopped
+    labels:
+      - homepage.group=MEDIA
+      - homepage.name=syncthing
+      - homepage.icon=syncthing.png
+      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi4-red}.local:8384
+      - homepage.description=syncthing backup
+    networks:
+      private_network:
+        

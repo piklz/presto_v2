@@ -1,0 +1,31 @@
+#---------------------------------------------------------------------#
+#     Homarr - A simple, yet powerful dashboard for your server.      #
+#---------------------------------------------------------------------#
+
+  homarr:
+    container_name: homarr
+    image: ghcr.io/ajnart/homarr:latest
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${VOLUMES_DIR}/homarr/config:/app/data/configs
+      - ${VOLUMES_DIR}/homarr/icons:/app/public/icons
+    ports:
+      - 7575:7575
+    env_file:
+      - ./services/homarr/homarr.env  
+    labels:
+      - homepage.group=NETWORK
+      - homepage.name=homarr
+      - homepage.icon=homarr.png
+      - homepage.href=http://${SYSTEM_HOSTNAME}:7575
+      - homepage.description=Server Dashboard
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7575 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s      
+    networks:
+      private_network:
+        

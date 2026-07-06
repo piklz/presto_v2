@@ -1,0 +1,32 @@
+  
+#---------------------------------------------------------------------#
+#     JACKETT UI                                                       #
+#---------------------------------------------------------------------# 
+  
+  jackett:
+    image: linuxserver/jackett
+    container_name: jackett    
+    env_file:
+      - ./services/jackett/jackett.env    
+    volumes:
+      - ./volumes/jackett/config:/config
+      - /media/USB_PLEX_14TB/DOWNLOADS:/downloads
+    ports:
+      - 9117:9117
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'jackett --NoRestart' >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s  
+    restart: unless-stopped
+    labels:
+      - homepage.group=MEDIA
+      - homepage.name=jackett
+      - homepage.icon=jackett.png
+      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi4-red}.local:9117      
+      - homepage.description= Torrent indexer 
+    networks:
+      private_network:
+        
+    

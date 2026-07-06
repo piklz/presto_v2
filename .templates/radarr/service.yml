@@ -1,0 +1,33 @@
+  
+#---------------------------------------------------------------------#
+#     RADARR UI                                                       #
+#---------------------------------------------------------------------#  
+  
+  radarr:
+    image: linuxserver/radarr:latest
+    container_name: radarr
+    env_file:
+      - ./services/radarr/radarr.env 
+    volumes:
+      - ./volumes/radarr/config:/config
+      #modify below paths to your setups folders choices in portainer + pi/linux mounted drives in 'fstab
+      - /media/YOUR-USB-DRIVE-PATH/MOVIES:/movies
+      - /media/YOUR-USB-DRIVE-PATH/DOWNLOADS:/downloads
+    ports:
+      - 7878:7878
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:7878/UI/Dashboard"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s      
+    labels:
+      - homepage.group=MEDIA
+      - homepage.name=Radarr
+      - homepage.icon=radarr.png
+      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi4-red}.local:7878
+      - homepage.description=movie radarr    
+    networks:
+      private_network:
+        
+    restart: unless-stopped

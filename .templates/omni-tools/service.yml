@@ -1,0 +1,16 @@
+  
+#---------------------------------------------------------------------#
+#     OMNI-TOOLS                                                      #
+#---------------------------------------------------------------------#  
+   
+  omni-tools:
+    image: iib0011/omni-tools:latest
+    container_name: omni-tools
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    env_file:
+      - ./services/omni-tools/omni-tools.env
+    networks:
+        private_network:
+          

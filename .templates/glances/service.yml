@@ -1,0 +1,35 @@
+#---------------------------------------------------------------------#
+#     GLANCES                                                         #
+#---------------------------------------------------------------------#  
+  glances:
+    image: nicolargo/glances:latest-full
+    container_name: glances
+    restart: always
+    privileged: true
+    pid: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/os-release:/etc/os-release:ro
+      #- /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:ro #RHEL?
+      - ${VOLUMES_DIR}/glances/glances.conf:/glances/conf/glances.conf
+    
+    env_file:
+      - ./services/glances/glances.env
+       
+    ports:
+      - "61208-61209:61208-61209"
+    labels:
+      - homepage.group=NETWORK
+      - homepage.name=glances
+      - homepage.icon=glances.png
+      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi4-red}.local:61208  
+      - homepage.description=system info top hub
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:61208"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      private_network:
+        
