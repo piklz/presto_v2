@@ -89,10 +89,15 @@ ui_confirm() {
 ui_notify() {
   # ui_notify "Title" "body text..."
   local title="$1"; shift
+  # Body text throughout presto embeds "\n" as a literal two-character escape
+  # inside double-quoted strings (bash does NOT interpret that on its own —
+  # only $'...' or printf do). Running it through `printf '%b'` here means
+  # every call site's \n / \t just works, instead of rendering as literal
+  # backslash-n text once a message is long enough to actually wrap.
   gum style \
     --border rounded --border-foreground 212 \
     --padding "0 1" --margin "1 0" \
-    "$(gum style --bold --foreground 212 "$title")" "" "$*"
+    "$(gum style --bold --foreground 212 "$title")" "" "$(printf '%b' "$*")"
   gum input --placeholder "  Press Enter to continue..." --char-limit 0 >/dev/null 2>&1 || true
 }
 
@@ -100,7 +105,7 @@ ui_error() {
   gum style \
     --border rounded --border-foreground 9 \
     --padding "0 1" --margin "1 0" \
-    "$(gum style --bold --foreground 9 "✗  Error")" "" "$*"
+    "$(gum style --bold --foreground 9 "✗  Error")" "" "$(printf '%b' "$*")"
   gum input --placeholder "  Press Enter to continue..." --char-limit 0 >/dev/null 2>&1 || true
 }
 
@@ -108,7 +113,7 @@ ui_warn() {
   gum style \
     --border rounded --border-foreground 214 \
     --padding "0 1" --margin "1 0" \
-    "$(gum style --bold --foreground 214 "⚠  Warning")" "" "$*"
+    "$(gum style --bold --foreground 214 "⚠  Warning")" "" "$(printf '%b' "$*")"
 }
 
 ui_header() {

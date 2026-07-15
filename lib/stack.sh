@@ -371,9 +371,15 @@ _generate_compose() {
   # This is what makes a rebuild safe to run against a stack that's
   # currently up: a broken template can never leave the live compose file
   # half-written for the next `docker compose up`/`restart` to trip over.
+  #
+  # NOTE: deliberately no `trap ... RETURN` here. In bash, a RETURN trap set
+  # inside a function is NOT scoped to that function — it stays armed for
+  # every subsequent function return anywhere else in the script for the
+  # rest of the run, long after tmp_compose/tmp_selection have gone out of
+  # scope, which trips `set -u` ("unbound variable") on the next unrelated
+  # function return. Clean up explicitly on the one path that needs it below.
   local tmp_compose; tmp_compose=$(mktemp "${COMPOSE_FILE}.XXXXXX")
   local tmp_selection; tmp_selection=$(mktemp "${SELECTION_FILE}.XXXXXX")
-  trap 'rm -f "$tmp_compose" "$tmp_selection"' RETURN
 
   # Write header + network block
   cat > "$tmp_compose" <<HEADER
@@ -430,8 +436,8 @@ HEADER
     local validate_err; validate_err=$(mktemp)
     if ! docker compose -f "$tmp_compose" config --quiet 2>"$validate_err"; then
       local err_msg; err_msg=$(cat "$validate_err")
-      rm -f "$validate_err"
-      ui_error "Generated compose file failed validation:\n\n${err_msg}\n\nFix the template(s) above and rebuild.\n\nYour existing docker-compose.yml was left untouched — nothing\nrunning has been affected. The rejected draft is at:\n${tmp_compose}"
+      rm -f "$validate_err" "$tmp_compose" "$tmp_selection"
+      ui_error "Generated compose file failed validation:\n\n${err_msg}\n\nFix the template(s) above and rebuild.\n\nYour existing docker-compose.yml was left untouched — nothing\nrunning has been affected."
       return 1
     fi
     rm -f "$validate_err"
@@ -445,8 +451,12 @@ HEADER
   mv -f "$tmp_selection" "$SELECTION_FILE"
 
   # ── Summary ────────────────────────────────────────────────────────────────
+  # Relative paths keep this readable once more than a handful of services
+  # are selected — repeating the full /home/pi/presto/services/... prefix
+  # on every line was the main reason a 9-service build turned into an
+  # unreadable wrapped wall of text.
   local env_list=""
-  for f in "${env_files[@]}"; do env_list+="  • $f\n"; done
+  for f in "${env_files[@]}"; do env_list+="  • ${f#"$PRESTO_DIR"/}\n"; done
 
   local fail_note=""
   if (( ${#failed[@]} > 0 )); then
