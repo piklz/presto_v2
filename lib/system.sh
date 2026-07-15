@@ -140,12 +140,13 @@ git_do_update() {
 
   (( stash_created )) && { git stash pop 2>/dev/null || log_warn "Stash pop had conflicts — check git status"; }
 
-  # Refresh .env.example files without touching real .envs
-  while IFS= read -r -d '' ex; do
-    local svc; svc=$(basename "$(dirname "$ex")")
-    local dest="$SERVICES_DIR/$svc/$(basename "$ex")"
-    [[ -f "$dest" ]] && cp "$ex" "$dest"
-  done < <(find "$TEMPLATES_DIR" -name "*.env.example" -print0 2>/dev/null)
+  # NOTE: deployed services/<svc>/*.env.example is intentionally NOT refreshed
+  # here. .templates/ is already current (git pull just updated it directly —
+  # it's a tracked path). Pushing that into an already-deployed service is a
+  # user decision, made explicitly via Build/Manage Stack → Rebuild →
+  # 'service' or 'env' mode, which already does this (plus service.yml) with
+  # the user's consent. Doing it silently here duplicated that logic and was
+  # the one place the update flow wrote into services/ outside the menu.
 
   find "$SCRIPTS_DIR" -name "*.sh" -exec chmod +x {} + 2>/dev/null || true
 
@@ -153,7 +154,8 @@ git_do_update() {
   rm -f "$PRESTO_DIR/.update_notified"
 
   log_info "Updated to $(git rev-parse --short HEAD)"
-  ui_notify "Update Complete ✓" "Presto is up to date."
+  ui_notify "Update Complete ✓" \
+    "Presto is up to date.\n\nTemplate changes (service.yml, .env.example, configs) are now in\n.templates/ but NOT yet applied to your deployed services.\n\nRun 'Build / Manage Stack → Rebuild' and pick 'service' or 'env'\nmode per app to pull them in, or 'none' to leave a service untouched."
 }
 
 # Manual, always-available trigger — System Tools → Check for Presto updates.

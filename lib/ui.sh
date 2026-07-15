@@ -145,7 +145,7 @@ ui_pick_overwrite_mode() {
   local name="$1"
   gum choose \
     --header "'${name}' already exists — what do you want to update?" \
-    "none     — Keep everything as-is" \
+    "none     — Keep everything as-is  (incl. volume configs)" \
     "service  — Update service.yml only  (image / ports changed upstream)" \
     "env      — Update service.yml, keep .env and volume configs" \
     "full     — Full fresh sync from template  ⚠  overwrites .env" \

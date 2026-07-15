@@ -535,12 +535,100 @@ _deploy_service() {
 
   [[ -f "$envf" ]] && apply_timezone "$envf"
 
-  # Seed SERVICE_CONFIGS to volumes/<svc>/ — first deploy only, never overwrite.
-  # These are extra runtime configs (Caddyfile, glances.conf, etc.) that the
-  # container mounts from volumes/ at runtime.  The user edits them there.
-  _seed_volume_configs "$svc" "$SERVICE_CONFIGS"
+  # Seed/drift-check SERVICE_CONFIGS in volumes/<svc>/ — these are extra
+  # runtime configs (Caddyfile, glances.conf, etc.) the container mounts
+  # from volumes/ at runtime. Skipped entirely for 'none' mode so that
+  # option means what it says: keep everything as-is, full stop. Every
+  # other mode (full/service/env, and first deploy) still checks, since a
+  # brand-new template config always needs seeding and an existing one may
+  # need the drift prompt in _seed_volume_configs.
+  if [[ "$mode" != "none" ]]; then
+    _seed_volume_configs "$svc" "$SERVICE_CONFIGS"
+  else
+    log_debug "[$svc] mode=none — skipping volume config seed/drift-check"
+  fi
 
   return 0
+}
+
+# ---------------------------------------------------------------------------
+# Config-drift tracking for SERVICE_CONFIGS.
+#
+# volumes/<svc>/.presto_seeded_checksums records, per seeded entry, the
+# checksum of the TEMPLATE version we last knew about — not the user's copy.
+# That lets us tell "upstream changed this since we last looked" apart from
+# "user edited their local copy" without ever touching the user's file
+# unless they explicitly choose to.
+# ---------------------------------------------------------------------------
+_config_checksum() {
+  local path="$1"
+  if [[ -d "$path" ]]; then
+    find "$path" -type f -print0 2>/dev/null | sort -z \
+      | xargs -0 sha256sum 2>/dev/null | sha256sum | awk '{print $1}'
+  else
+    sha256sum "$path" 2>/dev/null | awk '{print $1}'
+  fi
+}
+
+_manifest_get() {
+  local manifest="$1" key="$2"
+  [[ -f "$manifest" ]] || return 1
+  grep -m1 "^${key}=" "$manifest" | cut -d= -f2-
+}
+
+_manifest_set() {
+  local manifest="$1" key="$2" value="$3"
+  touch "$manifest"
+  if grep -q "^${key}=" "$manifest" 2>/dev/null; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$manifest"
+  else
+    echo "${key}=${value}" >> "$manifest"
+  fi
+}
+
+# Called when an already-seeded config entry's template checksum has moved
+# on since we last recorded it. Asks the user what to do rather than either
+# silently skipping (old behaviour — upstream fixes never land) or silently
+# overwriting (would clobber live edits).
+_handle_config_drift() {
+  local svc="$1" cfg="$2" src="$3" dst="$4" manifest="$5" new_checksum="$6"
+
+  while true; do
+    local choice
+    choice=$(gum choose \
+      --header "[$svc] '${cfg}' changed upstream since it was seeded — what now?" \
+      "View diff" \
+      "Apply update  (overwrites matching files, keeps any extra files of yours)" \
+      "Keep mine  (dismiss — won't ask again unless it changes further)" \
+      "Skip for now  (ask again next rebuild)" \
+    ) || choice="Skip for now"
+
+    case "$choice" in
+      "View diff")
+        diff -ru "$dst" "$src" 2>&1 | gum pager
+        continue
+        ;;
+      "Apply update"*)
+        if [[ -d "$src" ]]; then
+          rsync -a "$src/" "$dst/" 2>/dev/null
+        else
+          cp -f "$src" "$dst"
+        fi
+        _manifest_set "$manifest" "$cfg" "$new_checksum"
+        log_info "[$svc] applied upstream update to volumes/$svc/$cfg"
+        return 0
+        ;;
+      "Keep mine"*)
+        _manifest_set "$manifest" "$cfg" "$new_checksum"
+        log_info "[$svc] keeping local volumes/$svc/$cfg — dismissed this version"
+        return 0
+        ;;
+      *)
+        log_info "[$svc] deferring volumes/$svc/$cfg update — will ask again next rebuild"
+        return 0
+        ;;
+    esac
+  done
 }
 
 # ---------------------------------------------------------------------------
@@ -563,7 +651,8 @@ _seed_volume_configs() {
 
   local tmpl="$TEMPLATES_DIR/$svc"
   local vol_dir="${PRESTO_VOLUMES_DIR}/${svc}"
-  local -a seeded=() skipped=()
+  local manifest="$vol_dir/.presto_seeded_checksums"
+  local -a seeded=() skipped=() updated=()
 
   for cfg in $configs; do
     local src="$tmpl/$cfg"
@@ -575,33 +664,42 @@ _seed_volume_configs() {
     fi
 
     mkdir -p "$vol_dir"
+    local src_checksum; src_checksum=$(_config_checksum "$src")
 
-    if [[ -d "$src" ]]; then
-      # ── Directory (e.g. homepage's config/) ──────────────────────────────
-      # rsync --ignore-existing seeds template files that are absent in dst,
-      # skips files already there, and never deletes user-added files.
-      # Trailing slash on src = "contents of", preventing config/config/ nesting.
-      mkdir -p "$dst"
-      if rsync -a --ignore-existing "$src/" "$dst/" 2>/dev/null; then
-        seeded+=("$cfg/")
-        log_info "[$svc] seeded config dir → volumes/$svc/$cfg/ (existing files kept)"
+    if [[ ! -e "$dst" ]]; then
+      # ── First seed — never existed locally, just copy it in ──────────────
+      if [[ -d "$src" ]]; then
+        mkdir -p "$dst"
+        # Trailing slash on src = "contents of", preventing config/config/ nesting.
+        rsync -a "$src/" "$dst/" 2>/dev/null && seeded+=("$cfg/")
       else
-        log_warn "[$svc] rsync failed seeding $cfg/ — check permissions on volumes/$svc/"
+        cp "$src" "$dst" && seeded+=("$cfg")
       fi
+      _manifest_set "$manifest" "$cfg" "$src_checksum"
+      log_info "[$svc] seeded $cfg → volumes/$svc/$cfg"
+      continue
+    fi
+
+    # ── Already present locally — check whether the TEMPLATE moved on ──────
+    local stored; stored=$(_manifest_get "$manifest" "$cfg" || true)
+
+    if [[ -z "$stored" ]]; then
+      # Pre-existing install from before drift tracking existed. We don't
+      # know if this differs from what was originally seeded, so just
+      # record the current template checksum as the new baseline rather
+      # than prompting on every service's first rebuild after this update.
+      _manifest_set "$manifest" "$cfg" "$src_checksum"
+      skipped+=("$cfg")
+    elif [[ "$stored" != "$src_checksum" ]]; then
+      _handle_config_drift "$svc" "$cfg" "$src" "$dst" "$manifest" "$src_checksum"
+      updated+=("$cfg")
     else
-      # ── Flat file (e.g. glances.conf, Caddyfile) ─────────────────────────
-      if [[ ! -f "$dst" ]]; then
-        cp "$src" "$dst"
-        seeded+=("$cfg")
-        log_info "[$svc] seeded $cfg → volumes/$svc/$cfg"
-      else
-        skipped+=("$cfg")
-        log_debug "[$svc] $cfg already exists in volumes/$svc/ — not overwriting"
-      fi
+      skipped+=("$cfg")
     fi
   done
 
-  (( ${#seeded[@]}  > 0 )) && log_info  "[$svc] volume configs seeded : ${seeded[*]}"
-  (( ${#skipped[@]} > 0 )) && log_debug "[$svc] volume configs kept   : ${skipped[*]}"
+  (( ${#seeded[@]}  > 0 )) && log_info  "[$svc] volume configs seeded      : ${seeded[*]}"
+  (( ${#updated[@]} > 0 )) && log_info  "[$svc] volume configs drift-checked: ${updated[*]}"
+  (( ${#skipped[@]} > 0 )) && log_debug "[$svc] volume configs unchanged   : ${skipped[*]}"
   return 0
 }
