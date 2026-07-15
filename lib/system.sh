@@ -59,9 +59,21 @@ git_check_and_sync() {
   fi
 
   if [[ ! -d "$PRESTO_DIR/.git" ]]; then
+    if [[ -d "$PRESTO_DIR" && -n "$(ls -A "$PRESTO_DIR" 2>/dev/null)" ]]; then
+      # PRESTO_DIR exists, has content, but isn't a git checkout — this can
+      # happen from a zip download, a corrupted .git, or simply pointing
+      # PRESTO_DIR at the wrong path. It may contain volumes/ (real container
+      # data) or a hand-edited .env. NEVER auto-delete it.
+      log_error "PRESTO_DIR ($PRESTO_DIR) exists and is non-empty, but is not a git repository."
+      ui_error "PRESTO_DIR:\n  ${PRESTO_DIR}\n\nexists and contains files, but isn't a git checkout of presto.\nRefusing to touch it automatically — presto will never delete an\nexisting directory that might hold your data (volumes/, .env, etc).\n\nTo fix this, either:\n  • cd into an EMPTY directory and re-run presto_launch.sh, or\n  • turn this into a git repo yourself:\n      cd \"${PRESTO_DIR}\"\n      git init\n      git remote add origin ${PRESTO_REPO}\n      git fetch origin main\n      git reset --hard origin/main   # ⚠ only if no local edits matter"
+      exit 1
+    fi
+
     log_info "Cloning presto..."
     [[ "$PWD" == "$PRESTO_DIR"* ]] && cd "$USER_HOME"
-    [[ -d "$PRESTO_DIR" ]] && rm -rf "$PRESTO_DIR"
+    # Only reached when PRESTO_DIR is absent or empty — rmdir is a safety
+    # net here too, since it refuses to remove a non-empty directory.
+    [[ -d "$PRESTO_DIR" ]] && { rmdir "$PRESTO_DIR" 2>/dev/null || true; }
     git clone -b main "$PRESTO_REPO" "$PRESTO_DIR" \
       || { log_error "Clone failed"; exit 1; }
   fi
@@ -77,6 +89,7 @@ git_check_and_sync() {
   # First-run: create root .env from example if not present
   if [[ ! -f "$PRESTO_DIR/.env" && -f "$PRESTO_DIR/.env.example" ]]; then
     cp "$PRESTO_DIR/.env.example" "$PRESTO_DIR/.env"
+    apply_puid_pgid "$PRESTO_DIR/.env"
     log_warn ".env created from example — EDIT IT NOW: nano $PRESTO_DIR/.env"
     log_warn "Set SYSTEM_HOSTNAME, HOST_IP, and REMOTE_IP before starting your stack"
   fi
@@ -278,6 +291,41 @@ _docker_system_prune() {
   ui_warn "This removes ALL unused containers, images, networks, build cache,\nand volumes — not just dangling ones. Anything not attached to a\nrunning container will be deleted."
   ui_confirm "Continue with full Docker system prune?" || return 0
   _run_script "prune-system.sh" "Docker system pruned"
+}
+
+# ---------------------------------------------------------------------------
+# PUID/PGID helper — called once when the global .env is first created.
+#
+# Most container images (linuxserver.io-style: sonarr, radarr, jellyfin,
+# qbittorrent, etc.) chown their internal files to PUID:PGID on start so
+# bind-mounted volumes stay writable by the host user. A hardcoded default
+# of 1000:1000 in the example only happens to work when the installing
+# user's uid/gid is actually 1000 — on a second machine, a system with
+# multiple existing users, or anyone who created their account differently,
+# it silently breaks file permissions on every volume. We always use the
+# REAL invoking user resolved in the sudo-aware block at the top of
+# presto_launch.sh, never the root ids, even if presto itself were ever
+# invoked with sudo.
+# ---------------------------------------------------------------------------
+apply_puid_pgid() {
+  local env_file="$1"
+  local puid pgid
+  puid=$(id -u "$REAL_USER" 2>/dev/null) || puid=$(id -u)
+  pgid=$(id -g "$REAL_USER" 2>/dev/null) || pgid=$(id -g)
+
+  if grep -q "^PUID=" "$env_file"; then
+    sed -i "s|^PUID=.*|PUID=${puid}|" "$env_file"
+  else
+    printf "PUID=%s\n" "$puid" >> "$env_file"
+  fi
+
+  if grep -q "^PGID=" "$env_file"; then
+    sed -i "s|^PGID=.*|PGID=${pgid}|" "$env_file"
+  else
+    printf "PGID=%s\n" "$pgid" >> "$env_file"
+  fi
+
+  log_info "Set PUID=${puid} PGID=${pgid} in $(basename "$env_file") (matches user: ${REAL_USER})"
 }
 
 # ---------------------------------------------------------------------------

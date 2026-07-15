@@ -25,20 +25,47 @@ _docker_full_install() {
   ui_confirm "Install Docker CE + Compose plugin? (requires sudo)" || return 0
   check_disk_space 500 || return 1
 
-  # Detect distro
-  local distro codename
-  distro=$(grep "^ID=" /etc/os-release | cut -d= -f2 | tr -d '"')
+  # Detect distro. VERSION_CODENAME on a derivative distro (e.g. Linux Mint,
+  # Pop!_OS) is that distro's OWN codename ("vera", "jammy-derived", etc.),
+  # not a real Debian/Ubuntu apt suite — using it verbatim gives Docker's
+  # repo a 404. Ubuntu-based derivatives publish the real underlying suite
+  # in UBUNTU_CODENAME, so prefer that whenever ID_LIKE says "ubuntu".
+  local distro id_like codename ubuntu_codename
+  distro=$(grep "^ID="            /etc/os-release | cut -d= -f2 | tr -d '"')
+  id_like=$(grep "^ID_LIKE="      /etc/os-release | cut -d= -f2 | tr -d '"')
   codename=$(grep "^VERSION_CODENAME=" /etc/os-release | cut -d= -f2 | tr -d '"')
+  ubuntu_codename=$(grep "^UBUNTU_CODENAME=" /etc/os-release | cut -d= -f2 | tr -d '"')
 
-  local repo_distro
+  local repo_distro repo_codename
   case "$distro" in
-    ubuntu)          repo_distro="ubuntu" ;;
-    debian|raspbian) repo_distro="debian" ;;
+    ubuntu)
+      repo_distro="ubuntu"; repo_codename="$codename"
+      ;;
+    debian|raspbian)
+      repo_distro="debian"; repo_codename="$codename"
+      ;;
     *)
-      log_warn "Unknown distro '$distro' — defaulting to debian repo"
-      repo_distro="debian"
+      if [[ "$id_like" == *ubuntu* ]]; then
+        repo_distro="ubuntu"
+        repo_codename="${ubuntu_codename:-$codename}"
+        log_warn "Distro '$distro' is Ubuntu-based — using ubuntu/${repo_codename} Docker repo"
+      elif [[ "$id_like" == *debian* ]]; then
+        repo_distro="debian"
+        repo_codename="$codename"
+        log_warn "Distro '$distro' is Debian-based — using debian/${repo_codename} Docker repo"
+      else
+        repo_distro="debian"
+        repo_codename="$codename"
+        log_warn "Unknown distro '$distro' — defaulting to debian/${repo_codename} repo (may fail)"
+      fi
       ;;
   esac
+
+  if [[ -z "$repo_codename" ]]; then
+    log_error "Could not determine an apt codename (VERSION_CODENAME/UBUNTU_CODENAME missing)"
+    ui_error "Could not determine your distro's codename from /etc/os-release.\n\nDocker's apt repo needs this to know which package set to use.\nCheck /etc/os-release manually and, if needed, open an issue."
+    return 1
+  fi
 
   run_cmd "Updating apt..."            sudo apt-get update -y
   run_cmd "Installing prerequisites..." sudo apt-get install -y ca-certificates curl gnupg
@@ -52,7 +79,7 @@ _docker_full_install() {
 
   echo \
     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-https://download.docker.com/linux/${repo_distro} ${codename} stable" \
+https://download.docker.com/linux/${repo_distro} ${repo_codename} stable" \
     | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
 
   run_cmd "Updating apt with Docker repo..." sudo apt-get update -y
@@ -76,9 +103,33 @@ _docker_add_group() {
 }
 
 # ---------------------------------------------------------------------------
+# Verify docker is installed AND actually reachable before any stack/docker
+# operation. Without this, a user who was just added to the docker group but
+# hasn't run `newgrp docker` / re-logged in gets a bare "permission denied"
+# or "cannot connect to the Docker daemon" buried inside a docker compose
+# call, with no indication of what to actually do about it.
+# ---------------------------------------------------------------------------
+docker_check() {
+  command -v docker &>/dev/null || {
+    ui_error "Docker is not installed.\n\nUse '🔧  Install Docker + Compose' from the main menu first."
+    return 1
+  }
+
+  docker info &>/dev/null && return 0
+
+  if ! groups "$REAL_USER" 2>/dev/null | grep -qw docker; then
+    ui_error "User '${REAL_USER}' is not in the 'docker' group yet.\n\nRun '🔧  Install Docker + Compose' → 'Add current user to docker group',\nthen either run:\n  newgrp docker\nor log out and back in (reboot on Raspberry Pi OS) before trying again."
+  else
+    ui_error "Docker is installed and '${REAL_USER}' is in the docker group,\nbut the Docker daemon isn't reachable right now.\n\nIs the service running?\n  sudo systemctl status docker\n\nIf you were just added to the docker group, this session still needs:\n  newgrp docker\n(or a full log out / log in) before group membership takes effect."
+  fi
+  return 1
+}
+
+# ---------------------------------------------------------------------------
 # Docker commands menu
 # ---------------------------------------------------------------------------
 docker_commands_menu() {
+  docker_check || return 0
   local choice
   choice=$(gum choose \
     --header "🐳  Docker Commands" \
@@ -121,6 +172,7 @@ _run_script() {
 # Docker image update (pulls latest images for running stack)
 # ---------------------------------------------------------------------------
 docker_compose_update() {
+  docker_check || return 0
   check_disk_space 500 || return 1
   _run_script "update_compose.sh" "Docker images updated"
 }
