@@ -359,7 +359,12 @@ _build_stack() {
 # ---------------------------------------------------------------------------
 _generate_compose() {
   local -a services=("$@")
-  mkdir -p "$SERVICES_DIR"
+
+  if ! mkdir -p "$SERVICES_DIR" 2>/dev/null || [[ ! -w "$SERVICES_DIR" ]]; then
+    local owner; owner=$(stat -c '%U:%G' "$SERVICES_DIR" 2>/dev/null || stat -c '%U:%G' "$PRESTO_DIR" 2>/dev/null || echo "unknown")
+    ui_error "Cannot write to:\n  ${SERVICES_DIR}\n\nCurrent owner: ${owner}\n\nThis usually means it (or ${PRESTO_DIR}) got created as root at some\npoint — most often Docker auto-creating a bind-mount host path before\nthe directory existed, or an earlier command run under sudo by mistake.\n\nFix ownership, then retry:\n  sudo chown -R \$(id -un):\$(id -gn) \"${PRESTO_DIR}\""
+    return 1
+  fi
 
   # Build into temp files first — nothing below touches the LIVE
   # docker-compose.yml or selection.txt until validation has passed.
