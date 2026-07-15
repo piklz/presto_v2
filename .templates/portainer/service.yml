@@ -23,7 +23,7 @@
       - homepage.group=NETWORK
       - homepage.name=portainer
       - homepage.icon=portainer.png
-      - homepage.href=http://${HOST_URL}:9000
+      - homepage.href=http://${SYSTEM_HOSTNAME}:9000
       - homepage.description=docker manager
     networks:
       private_network:

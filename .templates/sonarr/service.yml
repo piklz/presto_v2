@@ -25,7 +25,7 @@
       - homepage.group=MEDIA
       - homepage.name=Sonarr
       - homepage.icon=sonarr.png
-      - homepage.href=http://${HOST_URL}:8989
+      - homepage.href=http://${SYSTEM_HOSTNAME}:8989
       - homepage.description=tv sonarr  
     networks:
       private_network:
