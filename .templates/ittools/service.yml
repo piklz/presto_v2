@@ -9,7 +9,7 @@
     env_file:
       - ./services/ittools/ittools.env  
     volumes:
-      - ./volumes/it-tools/config:/config
+      - ${VOLUMES_DIR}/it-tools/config:/config
     ports:
       - 8282:80  # <Host Port>:<Container Port> incase of pihole or anything else web clash on port 80
     healthcheck:

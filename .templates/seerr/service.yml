@@ -8,7 +8,7 @@
     init: true
     container_name: seerr
     volumes:
-      - ./volumes/seerr/config:/app/config
+      - ${VOLUMES_DIR}/seerr/config:/app/config
     env_file:
       - ./services/seerr/seerr.env    
     ports:

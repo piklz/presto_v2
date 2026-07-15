@@ -10,7 +10,7 @@
     env_file:
       - ./services/syncthing/syncthing.env
     volumes:
-      - ./volumes/syncthing/config:/config
+      - ${VOLUMES_DIR}/syncthing/config:/config
       - /media/32GUSB/data1:/data1
       - /media/32GUSB/data2:/data2
     ports:

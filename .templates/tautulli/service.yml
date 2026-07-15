@@ -8,7 +8,7 @@
     container_name: tautulli
     restart: unless-stopped
     volumes:
-      - ./volumes/tautulli/config:/config
+      - ${VOLUMES_DIR}/tautulli/config:/config
     env_file:
       - ./services/tautulli/tautulli.env
     ports:

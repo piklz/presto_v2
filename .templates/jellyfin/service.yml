@@ -9,7 +9,7 @@
     env_file:
       - ./services/jellyfin/jellyfin.env  
     volumes:
-      - ./volumes/jellyfin/config:/config
+      - ${VOLUMES_DIR}/jellyfin/config:/config
       - /media/YOUR-USB-DRIVE-PATH/TV:/data/tvshows
       - /media/32GUSB/MOVIES:/data/movies
       - /media/YOUR-USB-DRIVE-PATH/MUSIC:/data/music

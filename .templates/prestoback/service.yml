@@ -12,9 +12,9 @@
     volumes:
       # All app config dirs — prestoback reads/writes these for backup & restore.
       # Must be :rw so restore can overwrite files in place.
-      - ${VOLUMES_DIR}:/volumes:rw
+      - ${VOLUMES_DIR}${VOLUMES_DIR}:rw
       # PrestoBack's own data: config.json, backup archives, history.
-      # Bind-mount keeps it inside your existing ~/presto/volumes tree.
+      # Bind-mount keeps it inside your existing ~/prest${VOLUMES_DIR} tree.
       - ${VOLUMES_DIR}/prestoback:/data
       # Docker socket — needed for container stop/start during backup/restore
       # and for the self-update mechanism.

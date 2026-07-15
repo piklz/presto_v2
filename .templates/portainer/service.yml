@@ -18,7 +18,7 @@
       start_period: 60s      
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./volumes/portainer/data:/data
+      - ${VOLUMES_DIR}/portainer/data:/data
     labels:
       - homepage.group=NETWORK
       - homepage.name=portainer

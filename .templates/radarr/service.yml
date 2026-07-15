@@ -9,7 +9,7 @@
     env_file:
       - ./services/radarr/radarr.env 
     volumes:
-      - ./volumes/radarr/config:/config
+      - ${VOLUMES_DIR}/radarr/config:/config
       #modify below paths to your setups folders choices in portainer + pi/linux mounted drives in 'fstab
       - /media/YOUR-USB-DRIVE-PATH/MOVIES:/movies
       - /media/YOUR-USB-DRIVE-PATH/DOWNLOADS:/downloads

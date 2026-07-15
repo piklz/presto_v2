@@ -10,7 +10,7 @@
     env_file:
         - ./services/vaultwarden/vaultwarden.env  
     volumes:
-      - ./volumes/vaultwarden/vw-data/:/data/
+      - ${VOLUMES_DIR}/vaultwarden/vw-data/:/data/
     labels:
         - homepage.group=OFFICE
         - homepage.name=Vaultwarden

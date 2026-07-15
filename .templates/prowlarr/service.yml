@@ -9,7 +9,7 @@
       env_file:
       - ./services/prowlarr/prowlarr.env  
       volumes:
-        - ./volumes/prowlarr/data:/config
+        - ${VOLUMES_DIR}/prowlarr/data:/config
       ports:
         - 9696:9696
       healthcheck:

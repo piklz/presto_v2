@@ -8,7 +8,7 @@
     image: ghcr.io/immich-power-tools/immich-power-tools:latest
     user: "1000:1000"
     volumes:
-      - ./volumes/immich-power-tools/immich-power-tools-data:/app/data
+      - ${VOLUMES_DIR}/immich-power-tools/immich-power-tools-data:/app/data
     ports:
       - "8001:3000"
     env_file:

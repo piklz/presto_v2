@@ -9,7 +9,7 @@
     env_file:
       - ./services/lidarr/lidarr.env    
     volumes:
-      - ./volumes/lidarr/config:/config
+      - ${VOLUMES_DIR}/lidarr/config:/config
       #modify below paths to your setups folders choices in portainer + pi/linux mounted drives in 'fstab
       - /media/USB_PLEX_14TB/MUSIC:/music
       - /media/USB_PLEX_14TB/DOWNLOADS:/downloads

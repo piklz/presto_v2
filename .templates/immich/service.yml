@@ -23,7 +23,7 @@
       # Do not edit the next line. If you want to change the media storage location on your system, edit the value of UPLOAD_LOCATION in the .env file
       - ${UPLOAD_LOCATION}:/data
       - /etc/localtime:/etc/localtime:ro
-      #- ./volumes/immich/data:/data
+      #- ${VOLUMES_DIR}/immich/data:/data
     env_file:
       - ./services/immich/immich.env  
     ports:
@@ -53,7 +53,7 @@
     #   file: hwaccel.ml.yml
     #   service: cpu # set to one of [armnn, cuda, rocm, openvino, openvino-wsl, rknn] for accelerated inference - use the `-wsl` version for WSL2 where applicable
     volumes:
-      - ./volumes/immich/model-cache:/cache
+      - ${VOLUMES_DIR}/immich/model-cache:/cache
     env_file:
       - ./services/immich/immich.env 
     restart: always

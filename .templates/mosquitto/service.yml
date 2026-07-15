@@ -10,9 +10,9 @@
       - ./services/mosquitto/mosquitto.env  
       volumes: 
       # Uses mosquitto.conf (inside .templates/mosquitto cp to the volumes config dir if you want to customize it)
-        - ./volumes/mosquitto/config/:/mosquitto/config/
-        - ./volumes/mosquitto/data:/mosquitto/data
-        - ./volumes/mosquitto/log:/mosquitto/log
+        - ${VOLUMES_DIR}/mosquitto/config/:/mosquitto/config/
+        - ${VOLUMES_DIR}/mosquitto/data:/mosquitto/data
+        - ${VOLUMES_DIR}/mosquitto/log:/mosquitto/log
       ports:
         - 1883:1883
       healthcheck:

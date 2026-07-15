@@ -9,7 +9,7 @@
     env_file:
       - ./services/sonarr/sonarr.env 
     volumes:
-      - ./volumes/sonarr/data:/config
+      - ${VOLUMES_DIR}/sonarr/data:/config
         #modify below paths to your setups folders choices in portainer + pi/linux or mounted drives in 'fstab
       - /media/YOUR-USB-DRIVE-PATH/TV:/tv
       - /media/YOUR-USB-DRIVE-PATH/DOWNLOADS:/downloads
