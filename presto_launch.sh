@@ -79,6 +79,19 @@ PRESTO_VOLUMES_DIR="$(realpath -m "$PRESTO_VOLUMES_DIR")"
 export PRESTO_NETWORK_NAME PRESTO_SUBNET PRESTO_COMPOSE_FILE PRESTO_VOLUMES_DIR
 
 # ---------------------------------------------------------------------------
+# Breadcrumb for external tools (presto-tools aliases/cron scripts, etc).
+# They need to find THIS install's paths without hardcoding "~/presto" —
+# PRESTO_DIR is user-configurable and may live anywhere. Written fresh on
+# every launch, so if the install ever moves, the next run self-heals it.
+# Deliberately best-effort: a failure here must never block presto itself.
+# ---------------------------------------------------------------------------
+cat > "$USER_HOME/.presto_env" <<EOF 2>/dev/null || true
+PRESTO_DIR=$PRESTO_DIR
+PRESTO_COMPOSE_FILE=$PRESTO_COMPOSE_FILE
+PRESTO_VOLUMES_DIR=$PRESTO_VOLUMES_DIR
+EOF
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 VERBOSE=0
