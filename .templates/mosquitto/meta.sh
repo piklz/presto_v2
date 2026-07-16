@@ -3,9 +3,7 @@
 #
 # Presto template metadata
 
-SERVICE_DESC="mqtt server"
-SERVICE_ICON="💽"
+SERVICE_DESC="MQTT broker"
+SERVICE_ICON="📡"
 SERVICE_ARCH="all"
-SERVICE_TAGS="iot"
-SERVICE_DEPS=""                 # Leave empty if none
-SERVICE_CONFIGS="" # Example config file to be seeded
+SERVICE_CONFIGS="config/mosquitto.conf"   # seeded once, stays REAL_USER-owned
