@@ -22,6 +22,27 @@
 #                             # Presto auto-adds them and tells the user.
 #                             # Use for hard runtime deps (e.g. a database
 #                             # this service's depends_on block references).
+#    SERVICE_CONFIGS=""       # optional — space-separated paths (relative to
+#                             # the template dir) of files/dirs seeded into
+#                             # volumes/<n>/ before first start. Path shape
+#                             # must MIRROR where the app expects it at
+#                             # runtime — e.g. mosquitto wants its conf at
+#                             # volumes/mosquitto/config/mosquitto.conf, so
+#                             # the template must live at
+#                             # .templates/mosquitto/config/mosquitto.conf
+#                             # and SERVICE_CONFIGS="config/mosquitto.conf"
+#                             # (or "config" to seed the whole dir).
+#    SERVICE_WRITABLE_DIRS="" # optional — space-separated dirs (relative to
+#                             # volumes/<n>/) that the CONTAINER itself needs
+#                             # to write into at runtime (persistence dbs,
+#                             # logs, etc). Only needed for images that don't
+#                             # respect PUID/PGID and run as a fixed internal
+#                             # UID unrelated to whoever ran presto on this
+#                             # machine — mkdir'd + chmod 1777'd so any UID
+#                             # can write, without presto ever needing sudo
+#                             # or guessing the image's internal UID. Keep
+#                             # this list as narrow as possible; it should
+#                             # never include the config dir itself.
 #
 #  env_file path note (Compose v2 behaviour):
 #    env_file paths in service.yml resolve relative to docker-compose.yml's
@@ -486,7 +507,7 @@ _deploy_service() {
 
   # Read SERVICE_CONFIGS before rsync so we can exclude those files.
   # They belong in volumes/<svc>/, not services/<svc>/ — seeded separately below.
-  local SERVICE_CONFIGS=""
+  local SERVICE_CONFIGS="" SERVICE_WRITABLE_DIRS=""
   local SERVICE_DESC="" SERVICE_ICON="" SERVICE_ARCH="" SERVICE_TAGS="" SERVICE_DEPS=""
   # shellcheck source=/dev/null
   source "$tmpl/meta.sh" 2>/dev/null || true
@@ -544,6 +565,7 @@ _deploy_service() {
   # need the drift prompt in _seed_volume_configs.
   if [[ "$mode" != "none" ]]; then
     _seed_volume_configs "$svc" "$SERVICE_CONFIGS"
+    _ensure_writable_dirs "$svc" "$SERVICE_WRITABLE_DIRS"
   else
     log_debug "[$svc] mode=none — skipping volume config seed/drift-check"
   fi
@@ -701,5 +723,34 @@ _seed_volume_configs() {
   (( ${#seeded[@]}  > 0 )) && log_info  "[$svc] volume configs seeded      : ${seeded[*]}"
   (( ${#updated[@]} > 0 )) && log_info  "[$svc] volume configs drift-checked: ${updated[*]}"
   (( ${#skipped[@]} > 0 )) && log_debug "[$svc] volume configs unchanged   : ${skipped[*]}"
+  return 0
+}
+
+# ---------------------------------------------------------------------------
+# Ensure runtime-writable dirs exist and are writable by ANY uid — for
+# images that run as a fixed internal user unrelated to whoever ran presto
+# on this machine (i.e. don't respect PUID/PGID). See SERVICE_WRITABLE_DIRS
+# in the meta.sh field docs at the top of this file for the rationale.
+#
+# Deliberately narrow: only touches the specific dirs a template opts into,
+# never the config files or the rest of volumes/<svc>/. 1777 (sticky bit)
+# rather than plain 777 so, on any path a container might one day share
+# with another service, one container's files can't be deleted by another.
+# ---------------------------------------------------------------------------
+_ensure_writable_dirs() {
+  local svc="$1" dirs="$2"
+  [[ -z "$dirs" ]] && return 0
+
+  local vol_dir="${PRESTO_VOLUMES_DIR}/${svc}"
+  local -a made=()
+
+  for d in $dirs; do
+    local path="$vol_dir/$d"
+    mkdir -p "$path" || { log_warn "[$svc] could not create writable dir: $path"; continue; }
+    chmod 1777 "$path" || { log_warn "[$svc] could not chmod writable dir: $path"; continue; }
+    made+=("$d")
+  done
+
+  (( ${#made[@]} > 0 )) && log_info "[$svc] runtime-writable (1777, any uid): ${made[*]}"
   return 0
 }
