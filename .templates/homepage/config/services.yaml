@@ -209,7 +209,7 @@
           key: "{{HOMEPAGE_VAR_PORTAINER_KEY}}"
 #    - Docksentry:
 #        icon: docker.svg
-#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8080
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8083
 #    - Wireguard UI:
 #        icon: wireguard.svg
 #        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:5000

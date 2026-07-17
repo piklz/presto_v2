@@ -7,7 +7,7 @@
     image: amayer1983/docksentry:latest
     container_name: docksentry
     ports:
-      - "9090:8080"
+      - "8083:8080"
     env_file:
       - ./services/docksentry/docksentry.env
     volumes:
@@ -15,6 +15,11 @@
       - ${VOLUMES_DIR}/docksentry/docksentry_data:/data
     security_opt:
       - no-new-privileges:true
+    labels:
+      - homepage.group=OFFICE
+      - homepage.name=docksentry
+      - homepage.icon=docksentry.png
+      - homepage.description=container manager  
     networks:
       private_network:
     restart: unless-stopped
