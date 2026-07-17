@@ -778,14 +778,15 @@ _seed_staging_configs() {
     # ── Already present in staging — check whether the TEMPLATE moved on ──
     local stored; stored=$(_manifest_get "$manifest" "$cfg" || true)
 
-    if [[ -z "$stored" ]]; then
-      # Pre-existing install from before drift tracking existed. We don't
-      # know if this differs from what was originally seeded, so just
-      # record the current template checksum as the new baseline rather
-      # than prompting on every service's first rebuild after this update.
-      _manifest_set "$manifest" "$cfg" "$src_checksum"
-      skipped+=("$cfg")
-    elif [[ "$stored" != "$src_checksum" ]]; then
+    if [[ -z "$stored" || "$stored" != "$src_checksum" ]]; then
+      # Either the template genuinely changed, OR we have no manifest entry
+      # for this cfg yet (fresh manifest, or a services/<svc> dir that
+      # predates this tracking). Either way we do NOT know whether staging
+      # matches the current template — so this must go through the same
+      # prompt as a real change. Silently adopting the current checksum as
+      # baseline here (old behaviour) would record "up to date" without
+      # ever actually copying the new content in, which is exactly the bug
+      # that caused GitHub updates to appear to do nothing.
       _handle_config_drift "$svc" "$cfg" "$src" "$dst" "$manifest" "$src_checksum"
       updated+=("$cfg")
     else
@@ -893,44 +894,61 @@ _push_configs_menu() {
     return 0
   fi
 
-  local -a display=()
-  for p in "${pending[@]}"; do display+=("${p%%|*}  →  ${p#*|}"); done
-
-  local raw
-  raw=$(printf '%s\n' "${display[@]}" \
-    | gum choose --no-limit --header="Staged config changes not yet live — select to push:" \
-  ) || { log_info "Cancelled"; return 0; }
-  [[ -z "$raw" ]] && { ui_warn "Nothing selected — cancelled."; return 0; }
+  gum style --bold --foreground 212 \
+    "${#pending[@]} config change(s) staged but not yet live — reviewing one at a time:"
 
   local -a restart_candidates=()
-  while IFS= read -r line; do
-    [[ -z "$line" ]] && continue
-    local svc="${line%%  →*}" cfg="${line#*→  }"
+  local p
+  for p in "${pending[@]}"; do
+    local svc="${p%%|*}" cfg="${p#*|}"
     local stage_dir="${SERVICES_DIR}/${svc}"
     local vol_dir="${PRESTO_VOLUMES_DIR}/${svc}"
     local staged="$stage_dir/$cfg"
     local live="$vol_dir/$cfg"
     local pushed_manifest="$stage_dir/.presto_pushed_checksums"
 
-    _check_writable_dir "$(dirname "$live")" "[$svc] volumes/$svc (live)" || continue
+    while true; do
+      local choice
+      choice=$(gum choose \
+        --header "[$svc] '${cfg}' — staged copy differs from the LIVE (running) copy" \
+        "View diff  (live vs staged)" \
+        "Push to live  (overwrites the running container's copy)" \
+        "Skip for now  (ask again next time)" \
+      ) || choice="Skip for now"
 
-    local ok=1
-    if [[ -d "$staged" ]]; then
-      rsync -a "$staged/" "$live/" 2>/dev/null || ok=0
-    else
-      cp -f "$staged" "$live" 2>/dev/null || ok=0
-    fi
+      case "$choice" in
+        "View diff"*)
+          diff -ru "$live" "$staged" 2>&1 | gum pager
+          continue
+          ;;
+        "Push to live"*)
+          _check_writable_dir "$(dirname "$live")" "[$svc] volumes/$svc (live)" || break
 
-    if (( ok )); then
-      _manifest_set "$pushed_manifest" "$cfg" "$(_config_checksum "$staged")"
-      log_info "[$svc] pushed $cfg → volumes/$svc/$cfg (live)"
-      local dup=0
-      for r in "${restart_candidates[@]}"; do [[ "$r" == "$svc" ]] && dup=1 && break; done
-      (( dup )) || restart_candidates+=("$svc")
-    else
-      ui_error "[$svc] FAILED to push $cfg → volumes/$svc/$cfg\nCheck ownership/permissions and retry."
-    fi
-  done <<< "$raw"
+          local ok=1
+          if [[ -d "$staged" ]]; then
+            rsync -a "$staged/" "$live/" 2>/dev/null || ok=0
+          else
+            cp -f "$staged" "$live" 2>/dev/null || ok=0
+          fi
+
+          if (( ok )); then
+            _manifest_set "$pushed_manifest" "$cfg" "$(_config_checksum "$staged")"
+            log_info "[$svc] pushed $cfg → volumes/$svc/$cfg (live)"
+            local dup=0
+            for r in "${restart_candidates[@]}"; do [[ "$r" == "$svc" ]] && dup=1 && break; done
+            (( dup )) || restart_candidates+=("$svc")
+          else
+            ui_error "[$svc] FAILED to push $cfg → volumes/$svc/$cfg\nCheck ownership/permissions and retry."
+          fi
+          break
+          ;;
+        *)
+          log_info "[$svc] deferring push of $cfg — will ask again next time"
+          break
+          ;;
+      esac
+    done
+  done
 
   (( ${#restart_candidates[@]} == 0 )) && return 0
 
