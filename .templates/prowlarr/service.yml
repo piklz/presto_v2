@@ -22,7 +22,7 @@
       - homepage.group=MEDIA
       - homepage.name=prowlarr
       - homepage.icon=prowlarr.png
-      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi4-red}.local:9696
+      - homepage.href=http://${SYSTEM_HOSTNAME}:9696
       - homepage.description= T indexer
       networks:
         private_network:

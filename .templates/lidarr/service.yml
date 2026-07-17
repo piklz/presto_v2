@@ -25,7 +25,7 @@
       - homepage.group=MEDIA
       - homepage.name=lidarr
       - homepage.icon=lidarr.png
-      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi4-red}.local:8686
+      - homepage.href=http://${SYSTEM_HOSTNAME}:8686
       - homepage.description=song manager  
     networks:
       private_network:

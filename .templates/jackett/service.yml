@@ -24,7 +24,7 @@
       - homepage.group=MEDIA
       - homepage.name=jackett
       - homepage.icon=jackett.png
-      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi4-red}.local:9117      
+      - homepage.href=http://${SYSTEM_HOSTNAME}:9117      
       - homepage.description= Torrent indexer 
     networks:
       private_network:

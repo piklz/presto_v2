@@ -42,7 +42,7 @@
       - homepage.group=MEDIA
       - homepage.name=plex
       - homepage.icon=plex.png
-      - homepage.href=http://${SYSTEM_HOSTNAME}.local:32400
+      - homepage.href=http://${SYSTEM_HOSTNAME}:32400
       - homepage.description=media server/player
     networks:
       private_network:

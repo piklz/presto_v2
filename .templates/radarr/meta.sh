@@ -4,7 +4,7 @@
 # Presto template metadata
 
 SERVICE_DESC="movie manager"
-SERVICE_ICON="💽"
+SERVICE_ICON="🎞️"
 SERVICE_ARCH="all"
 SERVICE_TAGS="media"
 SERVICE_DEPS=""                 # Leave empty if none

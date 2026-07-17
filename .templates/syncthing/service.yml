@@ -29,7 +29,7 @@
       - homepage.group=MEDIA
       - homepage.name=syncthing
       - homepage.icon=syncthing.png
-      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi4-red}.local:8384
+      - homepage.href=http://${SYSTEM_HOSTNAME}:8384
       - homepage.description=syncthing backup
     networks:
       private_network:

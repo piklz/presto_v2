@@ -23,7 +23,7 @@
       - homepage.group=MEDIA
       - homepage.name=seerr
       - homepage.icon=seerr.png
-      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi4-red}.local:5055  
+      - homepage.href=http://${SYSTEM_HOSTNAME}:5055  
       - homepage.description= media grabber 
     networks:
       private_network:

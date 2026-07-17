@@ -35,7 +35,7 @@
       - homepage.group=OFFICE
       - homepage.name=trilium
       - homepage.icon=trilium.svg
-      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi4-red}.local:8111
+      - homepage.href=http://${SYSTEM_HOSTNAME}:8111
       - homepage.description=notes manager    
     networks:
       private_network:

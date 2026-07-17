@@ -37,7 +37,7 @@
       - homepage.group=NETWORK
       - homepage.name=Presto-x728
       - homepage.icon=python.png
-      - homepage.href=http://${SYSTEM_HOSTNAME}.local:7728
+      - homepage.href=http://${SYSTEM_HOSTNAME}:7728
       - homepage.description= Prestos x728 UPS hat monitor 
     networks:
       private_network:

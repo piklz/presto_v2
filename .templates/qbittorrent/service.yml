@@ -28,7 +28,7 @@
       - homepage.group=MEDIA
       - homepage.name=qbittorrent
       - homepage.icon=qbittorrent.png
-      - homepage.href=http://${SYSTEM_HOSTNAME:-rpi4-red}.local:15080
+      - homepage.href=http://${SYSTEM_HOSTNAME}:15080
       - homepage.description= Torrent Downloader
     networks:
       private_network:
