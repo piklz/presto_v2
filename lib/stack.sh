@@ -23,15 +23,29 @@
 #                             # Use for hard runtime deps (e.g. a database
 #                             # this service's depends_on block references).
 #    SERVICE_CONFIGS=""       # optional — space-separated paths (relative to
-#                             # the template dir) of files/dirs seeded into
-#                             # volumes/<n>/ before first start. Path shape
-#                             # must MIRROR where the app expects it at
-#                             # runtime — e.g. mosquitto wants its conf at
+#                             # the template dir) of files/dirs staged into
+#                             # services/<n>/ (never deployed via the main
+#                             # rsync — seeded/drift-checked separately, same
+#                             # as service.yml/.env). Path shape must MIRROR
+#                             # where the app expects it at runtime — e.g.
+#                             # mosquitto wants its conf at
 #                             # volumes/mosquitto/config/mosquitto.conf, so
 #                             # the template must live at
 #                             # .templates/mosquitto/config/mosquitto.conf
 #                             # and SERVICE_CONFIGS="config/mosquitto.conf"
 #                             # (or "config" to seed the whole dir).
+#                             #
+#                             # Flow: .templates/ → services/<n>/ (staging —
+#                             # git-ignored, safe to hand-edit, this is what
+#                             # "View diff" / drift-check compares against
+#                             # GitHub updates) → volumes/<n>/ (live, what the
+#                             # container actually mounts). The staging→live
+#                             # push happens AUTOMATICALLY the first time a
+#                             # config doesn't exist yet in volumes/<n>/ (so
+#                             # a fresh install just works), and MANUALLY
+#                             # afterward via Stack Management → Push staged
+#                             # config updates → live, which also offers to
+#                             # restart the container.
 #    SERVICE_WRITABLE_DIRS="" # optional — space-separated dirs (relative to
 #                             # volumes/<n>/) that the CONTAINER itself needs
 #                             # to write into at runtime (persistence dbs,
@@ -253,6 +267,7 @@ stack_menu() {
   choice=$(gum choose \
     --header "📦  Stack Management" \
     "Build / Rebuild Stack" \
+    "🔃  Push staged config updates → live volumes" \
     "View current selection" \
     "View generated compose file" \
     "← Back" \
@@ -260,6 +275,7 @@ stack_menu() {
 
   case "$choice" in
     *"Build"*)      _build_stack ;;
+    *"Push staged"*) _push_configs_menu ;;
     *"selection"*)  _view_file "$SELECTION_FILE" "No selection yet — run Build first." ;;
     *"compose"*)    _view_file "$COMPOSE_FILE"    "No compose file yet — run Build first." ;;
   esac
@@ -496,7 +512,9 @@ Then run:
 # ---------------------------------------------------------------------------
 # Deploy a single service: rsync template → services/
 # meta.sh and build.sh are never deployed (presto internals only).
-# SERVICE_CONFIGS files are seeded to volumes/<svc>/ — never to services/.
+# SERVICE_CONFIGS files are excluded from this rsync and staged separately
+# below via _seed_staging_configs (they need merge/drift semantics the plain
+# rsync modes don't give them).
 # ---------------------------------------------------------------------------
 _deploy_service() {
   local svc="$1"
@@ -506,7 +524,9 @@ _deploy_service() {
   [[ -d "$tmpl" ]] || { log_error "[$svc] template missing: $tmpl"; return 1; }
 
   # Read SERVICE_CONFIGS before rsync so we can exclude those files.
-  # They belong in volumes/<svc>/, not services/<svc>/ — seeded separately below.
+  # They're staged into services/<svc>/ separately below, with their own
+  # first-seed/drift logic — a plain rsync mode switch (full/service/env)
+  # isn't fine-grained enough for "merge new files, never touch existing ones".
   local SERVICE_CONFIGS="" SERVICE_WRITABLE_DIRS=""
   local SERVICE_DESC="" SERVICE_ICON="" SERVICE_ARCH="" SERVICE_TAGS="" SERVICE_DEPS=""
   # shellcheck source=/dev/null
@@ -556,20 +576,40 @@ _deploy_service() {
 
   [[ -f "$envf" ]] && apply_timezone "$envf"
 
-  # Seed/drift-check SERVICE_CONFIGS in volumes/<svc>/ — these are extra
-  # runtime configs (Caddyfile, glances.conf, etc.) the container mounts
-  # from volumes/ at runtime. Skipped entirely for 'none' mode so that
-  # option means what it says: keep everything as-is, full stop. Every
-  # other mode (full/service/env, and first deploy) still checks, since a
-  # brand-new template config always needs seeding and an existing one may
-  # need the drift prompt in _seed_volume_configs.
+  # Seed/drift-check SERVICE_CONFIGS into services/<svc>/ (staging), then
+  # auto-push any that don't exist yet in the live volume — this is what
+  # makes a first-time install "just work" without a manual push step.
+  # Skipped entirely for 'none' mode so that option means what it says:
+  # keep everything as-is, full stop. Every other mode (full/service/env,
+  # and first deploy) still checks, since a brand-new template config
+  # always needs staging and an existing one may need the drift prompt in
+  # _seed_staging_configs.
   if [[ "$mode" != "none" ]]; then
-    _seed_volume_configs "$svc" "$SERVICE_CONFIGS"
+    _seed_staging_configs "$svc" "$SERVICE_CONFIGS"
+    _autopush_new_configs "$svc" "$SERVICE_CONFIGS"
     _ensure_writable_dirs "$svc" "$SERVICE_WRITABLE_DIRS"
   else
-    log_debug "[$svc] mode=none — skipping volume config seed/drift-check"
+    log_debug "[$svc] mode=none — skipping config staging/drift-check"
   fi
 
+  return 0
+}
+
+# ---------------------------------------------------------------------------
+# Preflight: confirm we can actually write to a directory before attempting
+# a seed/push into it, and give ONE clear diagnostic instead of a scattered
+# cp/touch permission-denied stack trace. Auto-creates the dir if missing.
+# ---------------------------------------------------------------------------
+_check_writable_dir() {
+  local dir="$1" label="$2"
+
+  mkdir -p "$dir" 2>/dev/null
+
+  if [[ ! -d "$dir" || ! -w "$dir" ]]; then
+    local owner; owner=$(stat -c '%U:%G' "$dir" 2>/dev/null || echo "unknown")
+    ui_error "Cannot write to:\n  ${dir}\n\n(${label})\nCurrent owner: ${owner}\n\nThis usually means a container's entrypoint chown'd this bind-mounted\npath to its own internal user on first start, or it was created by\nDocker/root before the directory existed.\n\nFix ownership, then retry:\n  sudo chown -R \$(id -un):\$(id -gn) \"${dir}\""
+    return 1
+  fi
   return 0
 }
 
@@ -600,25 +640,36 @@ _manifest_get() {
 
 _manifest_set() {
   local manifest="$1" key="$2" value="$3"
-  touch "$manifest"
+
+  touch "$manifest" 2>/dev/null || {
+    log_error "Cannot write manifest: $manifest (permission denied?)"
+    return 1
+  }
+
   if grep -q "^${key}=" "$manifest" 2>/dev/null; then
-    sed -i "s|^${key}=.*|${key}=${value}|" "$manifest"
+    sed -i "s|^${key}=.*|${key}=${value}|" "$manifest" || return 1
   else
-    echo "${key}=${value}" >> "$manifest"
+    echo "${key}=${value}" >> "$manifest" || {
+      log_error "Cannot write to manifest: $manifest (permission denied?)"
+      return 1
+    }
   fi
+  return 0
 }
 
-# Called when an already-seeded config entry's template checksum has moved
-# on since we last recorded it. Asks the user what to do rather than either
-# silently skipping (old behaviour — upstream fixes never land) or silently
-# overwriting (would clobber live edits).
+# Called when an already-staged config entry's template checksum has moved
+# on since we last recorded it (i.e. a GitHub update changed it). Operates
+# on the STAGING copy in services/<svc>/ only — never touches the live copy
+# in volumes/<svc>/. Asks the user what to do rather than either silently
+# skipping (old behaviour — upstream fixes never land) or silently
+# overwriting (would clobber the user's staged edits).
 _handle_config_drift() {
   local svc="$1" cfg="$2" src="$3" dst="$4" manifest="$5" new_checksum="$6"
 
   while true; do
     local choice
     choice=$(gum choose \
-      --header "[$svc] '${cfg}' changed upstream since it was seeded — what now?" \
+      --header "[$svc] '${cfg}' changed upstream (GitHub) since it was staged — what now?" \
       "View diff" \
       "Apply update  (overwrites matching files, keeps any extra files of yours)" \
       "Keep mine  (dismiss — won't ask again unless it changes further)" \
@@ -631,22 +682,29 @@ _handle_config_drift() {
         continue
         ;;
       "Apply update"*)
+        local ok=1
         if [[ -d "$src" ]]; then
-          rsync -a "$src/" "$dst/" 2>/dev/null
+          rsync -a "$src/" "$dst/" 2>/dev/null || ok=0
         else
-          cp -f "$src" "$dst"
+          cp -f "$src" "$dst" || ok=0
         fi
-        _manifest_set "$manifest" "$cfg" "$new_checksum"
-        log_info "[$svc] applied upstream update to volumes/$svc/$cfg"
+        if (( ok )); then
+          _manifest_set "$manifest" "$cfg" "$new_checksum" \
+            && log_info "[$svc] applied upstream update to services/$svc/$cfg (staging — not yet live; use Push staged config updates to apply to the running container)" \
+            || log_error "[$svc] applied file update but FAILED to record it in manifest — will re-prompt next rebuild"
+        else
+          log_error "[$svc] FAILED to apply upstream update to services/$svc/$cfg — check ownership/permissions"
+        fi
         return 0
         ;;
       "Keep mine"*)
-        _manifest_set "$manifest" "$cfg" "$new_checksum"
-        log_info "[$svc] keeping local volumes/$svc/$cfg — dismissed this version"
+        _manifest_set "$manifest" "$cfg" "$new_checksum" \
+          && log_info "[$svc] keeping local services/$svc/$cfg — dismissed this version" \
+          || log_error "[$svc] FAILED to record dismissal in manifest — will re-prompt next rebuild"
         return 0
         ;;
       *)
-        log_info "[$svc] deferring volumes/$svc/$cfg update — will ask again next rebuild"
+        log_info "[$svc] deferring services/$svc/$cfg update — will ask again next rebuild"
         return 0
         ;;
     esac
@@ -654,55 +712,70 @@ _handle_config_drift() {
 }
 
 # ---------------------------------------------------------------------------
-# Seed volume-bound config entries from the template into volumes/<svc>/.
+# Seed volume-bound config entries from the template into services/<svc>/
+# (staging — git-ignored, safe to hand-edit, never touched by a container).
 # Handles both flat files (glances.conf, Caddyfile) and subdirectories
 # (homepage's config/ folder).
 #
-# Flat file  → copied only if the destination file does not yet exist.
+# Flat file  → copied only if the staging file does not yet exist.
 # Directory  → rsync --ignore-existing merges template files into the
-#              destination dir, skipping any that are already present and
+#              staging dir, skipping any that are already present and
 #              leaving all user-added files (custom.css, proxmox.yaml, logs/)
 #              completely untouched.  No deletions, ever.
 #
 # Called on every _deploy_service run regardless of mode, so a new config
-# file added to a template later is seeded automatically on next rebuild.
+# file added to a template later is staged automatically on next rebuild.
+# This function NEVER touches volumes/<svc>/ — see _autopush_new_configs and
+# _push_configs_menu for what actually reaches the live container.
 # ---------------------------------------------------------------------------
-_seed_volume_configs() {
+_seed_staging_configs() {
   local svc="$1" configs="$2"
   [[ -z "$configs" ]] && return 0
 
   local tmpl="$TEMPLATES_DIR/$svc"
-  local vol_dir="${PRESTO_VOLUMES_DIR}/${svc}"
-  local manifest="$vol_dir/.presto_seeded_checksums"
-  local -a seeded=() skipped=() updated=()
+  local stage_dir="${SERVICES_DIR}/${svc}"
+  local manifest="$stage_dir/.presto_tmpl_checksums"
+  local -a seeded=() skipped=() updated=() failed=()
+
+  _check_writable_dir "$stage_dir" "[$svc] staging dir (services/$svc)" || return 1
 
   for cfg in $configs; do
     local src="$tmpl/$cfg"
-    local dst="$vol_dir/$cfg"
+    local dst="$stage_dir/$cfg"
 
     if [[ ! -e "$src" ]]; then
       log_warn "[$svc] SERVICE_CONFIGS: '$cfg' not found in template — skipping"
       continue
     fi
 
-    mkdir -p "$vol_dir"
     local src_checksum; src_checksum=$(_config_checksum "$src")
 
     if [[ ! -e "$dst" ]]; then
-      # ── First seed — never existed locally, just copy it in ──────────────
+      # ── First seed — never existed in staging, just copy it in ───────────
+      local ok=1
       if [[ -d "$src" ]]; then
-        mkdir -p "$dst"
+        mkdir -p "$dst" || ok=0
         # Trailing slash on src = "contents of", preventing config/config/ nesting.
-        rsync -a "$src/" "$dst/" 2>/dev/null && seeded+=("$cfg/")
+        (( ok )) && { rsync -a "$src/" "$dst/" 2>/dev/null || ok=0; }
+        (( ok )) && seeded+=("$cfg/")
       else
-        cp "$src" "$dst" && seeded+=("$cfg")
+        cp "$src" "$dst" 2>/dev/null && seeded+=("$cfg") || ok=0
       fi
-      _manifest_set "$manifest" "$cfg" "$src_checksum"
-      log_info "[$svc] seeded $cfg → volumes/$svc/$cfg"
+
+      if (( ok )); then
+        if _manifest_set "$manifest" "$cfg" "$src_checksum"; then
+          log_info "[$svc] staged $cfg → services/$svc/$cfg"
+        else
+          log_error "[$svc] staged $cfg but FAILED to record checksum — will re-seed next rebuild"
+        fi
+      else
+        log_error "[$svc] FAILED to stage $cfg → services/$svc/$cfg (permission denied?)"
+        failed+=("$cfg")
+      fi
       continue
     fi
 
-    # ── Already present locally — check whether the TEMPLATE moved on ──────
+    # ── Already present in staging — check whether the TEMPLATE moved on ──
     local stored; stored=$(_manifest_get "$manifest" "$cfg" || true)
 
     if [[ -z "$stored" ]]; then
@@ -720,10 +793,153 @@ _seed_volume_configs() {
     fi
   done
 
-  (( ${#seeded[@]}  > 0 )) && log_info  "[$svc] volume configs seeded      : ${seeded[*]}"
-  (( ${#updated[@]} > 0 )) && log_info  "[$svc] volume configs drift-checked: ${updated[*]}"
-  (( ${#skipped[@]} > 0 )) && log_debug "[$svc] volume configs unchanged   : ${skipped[*]}"
+  (( ${#seeded[@]}  > 0 )) && log_info  "[$svc] configs staged        : ${seeded[*]}"
+  (( ${#updated[@]} > 0 )) && log_info  "[$svc] configs drift-checked  : ${updated[*]}"
+  (( ${#skipped[@]} > 0 )) && log_debug "[$svc] configs unchanged      : ${skipped[*]}"
+  (( ${#failed[@]}  > 0 )) && { log_error "[$svc] configs FAILED to stage: ${failed[*]}"; return 1; }
   return 0
+}
+
+# ---------------------------------------------------------------------------
+# Push any staged config that does not yet exist in the LIVE volume. This is
+# what makes a first-time install "just work" — a brand-new service (or a
+# brand-new SERVICE_CONFIGS entry on an existing service) gets pushed to
+# volumes/<svc>/ automatically. Anything that already exists live is left
+# alone — updating an already-live config is a deliberate action via
+# _push_configs_menu, never automatic, so a running container's config is
+# never rewritten out from under it without the user asking for it.
+# ---------------------------------------------------------------------------
+_autopush_new_configs() {
+  local svc="$1" configs="$2"
+  [[ -z "$configs" ]] && return 0
+
+  local stage_dir="${SERVICES_DIR}/${svc}"
+  local vol_dir="${PRESTO_VOLUMES_DIR}/${svc}"
+  local pushed_manifest="$stage_dir/.presto_pushed_checksums"
+  local -a pushed=() failed=()
+
+  for cfg in $configs; do
+    local src="$stage_dir/$cfg"
+    local dst="$vol_dir/$cfg"
+
+    [[ -e "$src" ]] || continue      # staging seed failed/skipped — nothing to push
+    [[ -e "$dst" ]] && continue      # already live — never auto-overwrite
+
+    _check_writable_dir "$(dirname "$dst")" "[$svc] volumes/$svc (live)" || { failed+=("$cfg"); continue; }
+
+    local ok=1
+    if [[ -d "$src" ]]; then
+      mkdir -p "$dst" || ok=0
+      (( ok )) && { rsync -a "$src/" "$dst/" 2>/dev/null || ok=0; }
+    else
+      cp "$src" "$dst" 2>/dev/null || ok=0
+    fi
+
+    if (( ok )); then
+      _manifest_set "$pushed_manifest" "$cfg" "$(_config_checksum "$src")"
+      pushed+=("$cfg")
+    else
+      log_error "[$svc] FAILED to push new config $cfg → volumes/$svc/$cfg (permission denied?)"
+      failed+=("$cfg")
+    fi
+  done
+
+  (( ${#pushed[@]} > 0 )) && log_info "[$svc] first-time config(s) pushed live: ${pushed[*]}"
+  (( ${#failed[@]} > 0 )) && return 1
+  return 0
+}
+
+# ---------------------------------------------------------------------------
+# Manual push: staging (services/<svc>/) → live (volumes/<svc>/) for configs
+# that already exist live and whose staged copy has since changed (either
+# via a GitHub template update applied through _handle_config_drift, or the
+# user hand-editing the staged file directly). Scans every deployed service,
+# lets the user pick which pending updates to push, then offers to restart
+# each affected container.
+# ---------------------------------------------------------------------------
+_push_configs_menu() {
+  docker_check || return 0
+  [[ -f "$SELECTION_FILE" ]] || { ui_notify "Nothing to push" "No stack built yet — run Build / Rebuild Stack first."; return 0; }
+
+  local -a pending=()   # "svc|cfg"
+  local svc
+  while IFS= read -r svc; do
+    [[ -z "$svc" ]] && continue
+    local SERVICE_CONFIGS=""
+    local meta="$TEMPLATES_DIR/$svc/meta.sh"
+    [[ -f "$meta" ]] || continue
+    # shellcheck source=/dev/null
+    source "$meta" 2>/dev/null || continue
+    [[ -z "$SERVICE_CONFIGS" ]] && continue
+
+    local stage_dir="${SERVICES_DIR}/${svc}"
+    local vol_dir="${PRESTO_VOLUMES_DIR}/${svc}"
+    local pushed_manifest="$stage_dir/.presto_pushed_checksums"
+
+    for cfg in $SERVICE_CONFIGS; do
+      local staged="$stage_dir/$cfg"
+      local live="$vol_dir/$cfg"
+      [[ -e "$staged" && -e "$live" ]] || continue   # not staged, or not live yet (handled by autopush)
+
+      local staged_checksum; staged_checksum=$(_config_checksum "$staged")
+      local last_pushed; last_pushed=$(_manifest_get "$pushed_manifest" "$cfg" || true)
+
+      [[ "$staged_checksum" != "$last_pushed" ]] && pending+=("${svc}|${cfg}")
+    done
+  done < "$SELECTION_FILE"
+
+  if (( ${#pending[@]} == 0 )); then
+    ui_notify "Up to date ✓" "No staged config changes are waiting to be pushed live."
+    return 0
+  fi
+
+  local -a display=()
+  for p in "${pending[@]}"; do display+=("${p%%|*}  →  ${p#*|}"); done
+
+  local raw
+  raw=$(printf '%s\n' "${display[@]}" \
+    | gum choose --no-limit --header="Staged config changes not yet live — select to push:" \
+  ) || { log_info "Cancelled"; return 0; }
+  [[ -z "$raw" ]] && { ui_warn "Nothing selected — cancelled."; return 0; }
+
+  local -a restart_candidates=()
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    local svc="${line%%  →*}" cfg="${line#*→  }"
+    local stage_dir="${SERVICES_DIR}/${svc}"
+    local vol_dir="${PRESTO_VOLUMES_DIR}/${svc}"
+    local staged="$stage_dir/$cfg"
+    local live="$vol_dir/$cfg"
+    local pushed_manifest="$stage_dir/.presto_pushed_checksums"
+
+    _check_writable_dir "$(dirname "$live")" "[$svc] volumes/$svc (live)" || continue
+
+    local ok=1
+    if [[ -d "$staged" ]]; then
+      rsync -a "$staged/" "$live/" 2>/dev/null || ok=0
+    else
+      cp -f "$staged" "$live" 2>/dev/null || ok=0
+    fi
+
+    if (( ok )); then
+      _manifest_set "$pushed_manifest" "$cfg" "$(_config_checksum "$staged")"
+      log_info "[$svc] pushed $cfg → volumes/$svc/$cfg (live)"
+      local dup=0
+      for r in "${restart_candidates[@]}"; do [[ "$r" == "$svc" ]] && dup=1 && break; done
+      (( dup )) || restart_candidates+=("$svc")
+    else
+      ui_error "[$svc] FAILED to push $cfg → volumes/$svc/$cfg\nCheck ownership/permissions and retry."
+    fi
+  done <<< "$raw"
+
+  (( ${#restart_candidates[@]} == 0 )) && return 0
+
+  for svc in "${restart_candidates[@]}"; do
+    ui_confirm "[$svc] config pushed live — restart the container now to apply it?" || continue
+    run_cmd "Restarting $svc..." docker compose -f "$COMPOSE_FILE" restart "$svc" \
+      && log_info "[$svc] restarted" \
+      || ui_error "[$svc] restart failed — check: docker compose -f \"$COMPOSE_FILE\" logs $svc"
+  done
 }
 
 # ---------------------------------------------------------------------------
