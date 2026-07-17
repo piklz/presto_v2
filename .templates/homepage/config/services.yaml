@@ -18,7 +18,7 @@
 #- Presto Media:
 #    - Sonarr:
 #        icon: sonarr.svg
-#        href: http://{{HOMEPAGE_VAR_SONARR_IP}}:8989
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8989
 #        widget:
 #          type: sonarr
 #          url: http://{{HOMEPAGE_VAR_SONARR_IP}}:8989
@@ -26,7 +26,7 @@
 #          enableQueue: true
 #    - Radarr:
 #        icon: radarr.svg
-#        href: http://{{HOMEPAGE_VAR_RADARR_IP}}:7878
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:7878
 #        widget:
 #          type: radarr
 #          url: http://{{HOMEPAGE_VAR_RADARR_IP}}:7878
@@ -34,28 +34,28 @@
 #          enableQueue: true
 #    - Lidarr:
 #        icon: lidarr.svg
-#        href: http://{{HOMEPAGE_VAR_LIDARR_IP}}:8686
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8686
 #        widget:
 #          type: lidarr
 #          url: http://{{HOMEPAGE_VAR_LIDARR_IP}}:8686
 #          key: "{{HOMEPAGE_VAR_LIDARR_KEY}}"
 #    - Prowlarr:
 #        icon: prowlarr.svg
-#        href: http://{{HOMEPAGE_VAR_PROWLARR_IP}}:9696
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:9696
 #        widget:
 #          type: prowlarr
 #          url: http://{{HOMEPAGE_VAR_PROWLARR_IP}}:9696
 #          key: "{{HOMEPAGE_VAR_PROWLARR_KEY}}"
 #    - Jackett:
 #        icon: jackett.svg
-#        href: http://{{HOMEPAGE_VAR_JACKETT_IP}}:9117
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:9117
 #        widget:
 #          type: jackett
 #          url: http://{{HOMEPAGE_VAR_JACKETT_IP}}:9117
 #          password: "{{HOMEPAGE_VAR_JACKETT_KEY}}"
 #    - Qbittorrent:
 #        icon: qbittorrent.svg
-#        href: http://{{HOMEPAGE_VAR_QBITTORRENT_IP}}:15080
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:15080
 #        description: Torrent downloader
 #        widget:
 #          type: qbittorrent
@@ -64,7 +64,7 @@
 #          password: "{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}"
 #    - Jellyfin:
 #        icon: jellyfin.svg
-#        href: http://{{HOMEPAGE_VAR_JELLYFIN_IP}}:8096
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8096
 #        widget:
 #          type: jellyfin
 #          url: http://{{HOMEPAGE_VAR_JELLYFIN_IP}}:8096
@@ -76,14 +76,14 @@
 #          expandOneStreamToTwoRows: true
 #    - Plex:
 #        icon: plex.svg
-#        href: http://{{HOMEPAGE_VAR_PLEX_IP}}:32400
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:32400
 #        widget:
 #          type: plex
 #          url: http://{{HOMEPAGE_VAR_PLEX_IP}}:32400
 #          key: "{{HOMEPAGE_VAR_PLEX_KEY}}"
 #    - Tautulli:
 #        icon: tautulli.svg
-#        href: http://{{HOMEPAGE_VAR_TAUTULLI_IP}}:8181
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8181
 #        widget:
 #          type: tautulli
 #          url: http://{{HOMEPAGE_VAR_TAUTULLI_IP}}:8181
@@ -93,37 +93,37 @@
 #          expandOneStreamToTwoRows: true
 #    - Overseerr:
 #        icon: overseerr.svg
-#        href: http://{{HOMEPAGE_VAR_SEERR_IP}}:5055
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:5055
 #        widget:
 #          type: overseerr
 #          url: http://{{HOMEPAGE_VAR_SEERR_IP}}:5055
 #          key: "{{HOMEPAGE_VAR_SEERR_KEY}}"
 #    - Motioneye:
 #        icon: motioneye.svg
-#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_IP}}:8765
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8765
 
 #- Presto Photos & Files:
 #    - Immich:
 #        icon: immich.svg
-#        href: http://{{HOMEPAGE_VAR_IMMICH_IP}}:2283
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:2283
 #        widget:
 #          type: immich
 #          url: http://{{HOMEPAGE_VAR_IMMICH_IP}}:2283
 #          key: "{{HOMEPAGE_VAR_IMMICH_KEY}}"
-#          version: 1
+#          version: 2
 #    - Immich Power Tools:
 #        icon: immich-power-tools.png
-#        href: http://{{HOMEPAGE_VAR_IMMICH_POWER_TOOLS_IP}}:8001
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8001
 #    - PhotoPrism:
 #        icon: photoprism.svg
-#        href: http://{{HOMEPAGE_VAR_PHOTOPRISM_IP}}:2342
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:2342
 #        widget:
 #          type: photoprism
 #          url: http://{{HOMEPAGE_VAR_PHOTOPRISM_IP}}:2342
 #          password: "{{HOMEPAGE_VAR_PHOTOPRISM_KEY}}"
 #    - Syncthing:
 #        icon: syncthing.svg
-#        href: http://{{HOMEPAGE_VAR_SYNCTHING_IP}}:8384
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8384
 #        widget:
 #          type: syncthing
 #          url: http://{{HOMEPAGE_VAR_SYNCTHING_IP}}:8384
@@ -132,27 +132,27 @@
 #- Presto Smart Home & Utilities:
 #    - Home Assistant:
 #        icon: home-assistant.svg
-#        href: http://{{HOMEPAGE_VAR_HOMEASSISTANT_IP}}:8123
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8123
 #        widget:
 #          type: homeassistant
 #          url: http://{{HOMEPAGE_VAR_HOMEASSISTANT_IP}}:8123
 #          key: "{{HOMEPAGE_VAR_HOMEASSISTANT_KEY}}"
 #    - Vaultwarden:
 #        icon: vaultwarden.svg
-#        href: http://{{HOMEPAGE_VAR_VAULTWARDEN_IP}}:8000
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8000
 #    - Trilium:
 #        icon: trilium.png
-#        href: http://{{HOMEPAGE_VAR_TRILIUM_IP}}:8080
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8111
 #        widget:
 #          type: trilium
-#          url: http://{{HOMEPAGE_VAR_TRILIUM_IP}}:8080
-#          token: "{{HOMEPAGE_VAR_TRILIUM_KEY}}"
+#          url: http://{{HOMEPAGE_VAR_TRILIUM_IP}}:8111
+#          key: "{{HOMEPAGE_VAR_TRILIUM_KEY}}"
 #    - Homebox:
 #        icon: homebox.png
-#        href: http://{{HOMEPAGE_VAR_HOMEBOX_IP}}:7745
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:7745
 #    - Mosquitto MQTT:
 #        icon: mosquitto.svg
-#        href: http://{{HOMEPAGE_VAR_MOSQUITTO_IP}}:1883
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:1883
 
 #- Media Calendar:
 #    - calendar:
@@ -187,7 +187,7 @@
 - Presto System Management:
 #    - PiHole:
 #        icon: pi-hole.svg
-#        href: http://{{HOMEPAGE_VAR_PIHOLE_IP}}:80/admin
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:80/admin
 #        description: Core DNS
 #        widget:
 #          type: pihole
@@ -195,41 +195,41 @@
 #          key: "{{HOMEPAGE_VAR_PIHOLE_KEY}}"
     - Uptime Kuma:
         icon: uptime-kuma.svg
-        href: http://{{HOMEPAGE_VAR_UPTIMEKUMA_IP}}:3001
+        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:3001
         widget:
           type: uptimekuma
           url: http://{{HOMEPAGE_VAR_UPTIMEKUMA_IP}}:3001
           slug: home
     - Portainer:
         icon: portainer.svg
-        href: http://{{HOMEPAGE_VAR_PORTAINER_IP}}:9000
+        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:9000
         widget:
           type: portainer
           url: http://{{HOMEPAGE_VAR_PORTAINER_IP}}:9000
           key: "{{HOMEPAGE_VAR_PORTAINER_KEY}}"
 #    - Docksentry:
 #        icon: docker.svg
-#        href: http://{{HOMEPAGE_VAR_DOCKSENTRY_IP}}:8080
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8080
 #    - Wireguard UI:
 #        icon: wireguard.svg
-#        href: http://{{HOMEPAGE_VAR_WIREGUARD_IP}}:5000
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:5000
     - Caddy Ingress:
         icon: caddy.svg
-        href: http://{{HOMEPAGE_VAR_CADDY_IP}}:80
+        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:80
 #    - IT-Tools:
 #        icon: it-tools.png
-#        href: http://{{HOMEPAGE_VAR_ITTOOLS_IP}}:8080
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:8080
 #    - Homarr Dashboard:
 #        icon: homarr.svg
-#        href: http://{{HOMEPAGE_VAR_HOMARR_IP}}:7575
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:7575
 #    - Heimdall Panel:
 #        icon: heimdall.svg
-#        href: http://{{HOMEPAGE_VAR_HEIMDALL_IP}}:80
+#        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:80
 
 - Presto Hardware Telemetry:
     - Glances CPU:
         icon: glances.svg
-        href: http://{{HOMEPAGE_VAR_GLANCES_IP}}:61208
+        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:61208
         description: Load Average
         widget:
           type: glances
@@ -240,7 +240,7 @@
           pointsLimit: 15
     - Glances Procs:
         icon: glances.svg
-        href: http://{{HOMEPAGE_VAR_GLANCES_IP}}:61208
+        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:61208
         description: Top 5 Processes
         widget:
           type: glances
@@ -250,7 +250,7 @@
           refreshInterval: 5000
     - Glances Thermal:
         icon: glances.svg
-        href: http://{{HOMEPAGE_VAR_GLANCES_IP}}:61208
+        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:61208
         description: CPU Temperature
         widget:
           type: glances
@@ -260,7 +260,7 @@
           refreshInterval: 5000
     - Glances System:
         icon: glances.svg
-        href: http://{{HOMEPAGE_VAR_GLANCES_IP}}:61208
+        href: http://{{HOMEPAGE_VAR_APP_REMOTE_HOSTNAME}}:61208
         description: Core Info
         widget:
           type: glances
