@@ -22,27 +22,6 @@
 #                             # Presto auto-adds them and tells the user.
 #                             # Use for hard runtime deps (e.g. a database
 #                             # this service's depends_on block references).
-#    SERVICE_CONFIGS=""       # optional — space-separated paths (relative to
-#                             # the template dir) of files/dirs seeded into
-#                             # volumes/<n>/ before first start. Path shape
-#                             # must MIRROR where the app expects it at
-#                             # runtime — e.g. mosquitto wants its conf at
-#                             # volumes/mosquitto/config/mosquitto.conf, so
-#                             # the template must live at
-#                             # .templates/mosquitto/config/mosquitto.conf
-#                             # and SERVICE_CONFIGS="config/mosquitto.conf"
-#                             # (or "config" to seed the whole dir).
-#    SERVICE_WRITABLE_DIRS="" # optional — space-separated dirs (relative to
-#                             # volumes/<n>/) that the CONTAINER itself needs
-#                             # to write into at runtime (persistence dbs,
-#                             # logs, etc). Only needed for images that don't
-#                             # respect PUID/PGID and run as a fixed internal
-#                             # UID unrelated to whoever ran presto on this
-#                             # machine — mkdir'd + chmod 1777'd so any UID
-#                             # can write, without presto ever needing sudo
-#                             # or guessing the image's internal UID. Keep
-#                             # this list as narrow as possible; it should
-#                             # never include the config dir itself.
 #
 #  env_file path note (Compose v2 behaviour):
 #    env_file paths in service.yml resolve relative to docker-compose.yml's
@@ -507,7 +486,7 @@ _deploy_service() {
 
   # Read SERVICE_CONFIGS before rsync so we can exclude those files.
   # They belong in volumes/<svc>/, not services/<svc>/ — seeded separately below.
-  local SERVICE_CONFIGS="" SERVICE_WRITABLE_DIRS=""
+  local SERVICE_CONFIGS=""
   local SERVICE_DESC="" SERVICE_ICON="" SERVICE_ARCH="" SERVICE_TAGS="" SERVICE_DEPS=""
   # shellcheck source=/dev/null
   source "$tmpl/meta.sh" 2>/dev/null || true
@@ -556,101 +535,12 @@ _deploy_service() {
 
   [[ -f "$envf" ]] && apply_timezone "$envf"
 
-  # Seed/drift-check SERVICE_CONFIGS in volumes/<svc>/ — these are extra
-  # runtime configs (Caddyfile, glances.conf, etc.) the container mounts
-  # from volumes/ at runtime. Skipped entirely for 'none' mode so that
-  # option means what it says: keep everything as-is, full stop. Every
-  # other mode (full/service/env, and first deploy) still checks, since a
-  # brand-new template config always needs seeding and an existing one may
-  # need the drift prompt in _seed_volume_configs.
-  if [[ "$mode" != "none" ]]; then
-    _seed_volume_configs "$svc" "$SERVICE_CONFIGS"
-    _ensure_writable_dirs "$svc" "$SERVICE_WRITABLE_DIRS"
-  else
-    log_debug "[$svc] mode=none — skipping volume config seed/drift-check"
-  fi
+  # Seed SERVICE_CONFIGS to volumes/<svc>/ — first deploy only, never overwrite.
+  # These are extra runtime configs (Caddyfile, glances.conf, etc.) that the
+  # container mounts from volumes/ at runtime.  The user edits them there.
+  _seed_volume_configs "$svc" "$SERVICE_CONFIGS"
 
   return 0
-}
-
-# ---------------------------------------------------------------------------
-# Config-drift tracking for SERVICE_CONFIGS.
-#
-# volumes/<svc>/.presto_seeded_checksums records, per seeded entry, the
-# checksum of the TEMPLATE version we last knew about — not the user's copy.
-# That lets us tell "upstream changed this since we last looked" apart from
-# "user edited their local copy" without ever touching the user's file
-# unless they explicitly choose to.
-# ---------------------------------------------------------------------------
-_config_checksum() {
-  local path="$1"
-  if [[ -d "$path" ]]; then
-    find "$path" -type f -print0 2>/dev/null | sort -z \
-      | xargs -0 sha256sum 2>/dev/null | sha256sum | awk '{print $1}'
-  else
-    sha256sum "$path" 2>/dev/null | awk '{print $1}'
-  fi
-}
-
-_manifest_get() {
-  local manifest="$1" key="$2"
-  [[ -f "$manifest" ]] || return 1
-  grep -m1 "^${key}=" "$manifest" | cut -d= -f2-
-}
-
-_manifest_set() {
-  local manifest="$1" key="$2" value="$3"
-  touch "$manifest"
-  if grep -q "^${key}=" "$manifest" 2>/dev/null; then
-    sed -i "s|^${key}=.*|${key}=${value}|" "$manifest"
-  else
-    echo "${key}=${value}" >> "$manifest"
-  fi
-}
-
-# Called when an already-seeded config entry's template checksum has moved
-# on since we last recorded it. Asks the user what to do rather than either
-# silently skipping (old behaviour — upstream fixes never land) or silently
-# overwriting (would clobber live edits).
-_handle_config_drift() {
-  local svc="$1" cfg="$2" src="$3" dst="$4" manifest="$5" new_checksum="$6"
-
-  while true; do
-    local choice
-    choice=$(gum choose \
-      --header "[$svc] '${cfg}' changed upstream since it was seeded — what now?" \
-      "View diff" \
-      "Apply update  (overwrites matching files, keeps any extra files of yours)" \
-      "Keep mine  (dismiss — won't ask again unless it changes further)" \
-      "Skip for now  (ask again next rebuild)" \
-    ) || choice="Skip for now"
-
-    case "$choice" in
-      "View diff")
-        diff -ru "$dst" "$src" 2>&1 | gum pager
-        continue
-        ;;
-      "Apply update"*)
-        if [[ -d "$src" ]]; then
-          rsync -a "$src/" "$dst/" 2>/dev/null
-        else
-          cp -f "$src" "$dst"
-        fi
-        _manifest_set "$manifest" "$cfg" "$new_checksum"
-        log_info "[$svc] applied upstream update to volumes/$svc/$cfg"
-        return 0
-        ;;
-      "Keep mine"*)
-        _manifest_set "$manifest" "$cfg" "$new_checksum"
-        log_info "[$svc] keeping local volumes/$svc/$cfg — dismissed this version"
-        return 0
-        ;;
-      *)
-        log_info "[$svc] deferring volumes/$svc/$cfg update — will ask again next rebuild"
-        return 0
-        ;;
-    esac
-  done
 }
 
 # ---------------------------------------------------------------------------
@@ -673,8 +563,7 @@ _seed_volume_configs() {
 
   local tmpl="$TEMPLATES_DIR/$svc"
   local vol_dir="${PRESTO_VOLUMES_DIR}/${svc}"
-  local manifest="$vol_dir/.presto_seeded_checksums"
-  local -a seeded=() skipped=() updated=()
+  local -a seeded=() skipped=()
 
   for cfg in $configs; do
     local src="$tmpl/$cfg"
@@ -685,72 +574,46 @@ _seed_volume_configs() {
       continue
     fi
 
-    mkdir -p "$vol_dir"
-    local src_checksum; src_checksum=$(_config_checksum "$src")
+    mkdir -p "$vol_dir" 2>/dev/null
 
-    if [[ ! -e "$dst" ]]; then
-      # ── First seed — never existed locally, just copy it in ──────────────
-      if [[ -d "$src" ]]; then
-        mkdir -p "$dst"
-        # Trailing slash on src = "contents of", preventing config/config/ nesting.
-        rsync -a "$src/" "$dst/" 2>/dev/null && seeded+=("$cfg/")
-      else
-        cp "$src" "$dst" && seeded+=("$cfg")
-      fi
-      _manifest_set "$manifest" "$cfg" "$src_checksum"
-      log_info "[$svc] seeded $cfg → volumes/$svc/$cfg"
+    if [[ ! -w "$vol_dir" ]]; then
+      log_warn "[$svc] volumes/$svc/ is not writable by $(id -un) — skipping config seed for '$cfg'"
+      log_warn "[$svc] fix: sudo chown -R \$(id -un):\$(id -gn) \"${vol_dir}\"   (then rebuild)"
       continue
     fi
 
-    # ── Already present locally — check whether the TEMPLATE moved on ──────
-    local stored; stored=$(_manifest_get "$manifest" "$cfg" || true)
-
-    if [[ -z "$stored" ]]; then
-      # Pre-existing install from before drift tracking existed. We don't
-      # know if this differs from what was originally seeded, so just
-      # record the current template checksum as the new baseline rather
-      # than prompting on every service's first rebuild after this update.
-      _manifest_set "$manifest" "$cfg" "$src_checksum"
-      skipped+=("$cfg")
-    elif [[ "$stored" != "$src_checksum" ]]; then
-      _handle_config_drift "$svc" "$cfg" "$src" "$dst" "$manifest" "$src_checksum"
-      updated+=("$cfg")
+    if [[ -d "$src" ]]; then
+      # ── Directory (e.g. homepage's config/) ──────────────────────────────
+      # rsync --ignore-existing seeds template files that are absent in dst,
+      # skips files already there, and never deletes user-added files.
+      # Trailing slash on src = "contents of", preventing config/config/ nesting.
+      mkdir -p "$dst"
+      if rsync -a --ignore-existing "$src/" "$dst/" 2>/dev/null; then
+        seeded+=("$cfg/")
+        log_info "[$svc] seeded config dir → volumes/$svc/$cfg/ (existing files kept)"
+      else
+        log_warn "[$svc] rsync failed seeding $cfg/ — check permissions on volumes/$svc/"
+      fi
     else
-      skipped+=("$cfg")
+      # ── Flat file (e.g. glances.conf, Caddyfile) ─────────────────────────
+      if [[ ! -f "$dst" ]]; then
+        # Exit code checked explicitly — a permission-denied cp here used to
+        # still fall through to the "seeded" success log below, which is
+        # exactly backwards: a failed copy must never be reported as [✓].
+        if cp "$src" "$dst" 2>/dev/null; then
+          seeded+=("$cfg")
+          log_info "[$svc] seeded $cfg → volumes/$svc/$cfg"
+        else
+          log_warn "[$svc] could not seed $cfg → volumes/$svc/$cfg (permission denied — check ownership of volumes/$svc/)"
+        fi
+      else
+        skipped+=("$cfg")
+        log_debug "[$svc] $cfg already exists in volumes/$svc/ — not overwriting"
+      fi
     fi
   done
 
-  (( ${#seeded[@]}  > 0 )) && log_info  "[$svc] volume configs seeded      : ${seeded[*]}"
-  (( ${#updated[@]} > 0 )) && log_info  "[$svc] volume configs drift-checked: ${updated[*]}"
-  (( ${#skipped[@]} > 0 )) && log_debug "[$svc] volume configs unchanged   : ${skipped[*]}"
-  return 0
-}
-
-# ---------------------------------------------------------------------------
-# Ensure runtime-writable dirs exist and are writable by ANY uid — for
-# images that run as a fixed internal user unrelated to whoever ran presto
-# on this machine (i.e. don't respect PUID/PGID). See SERVICE_WRITABLE_DIRS
-# in the meta.sh field docs at the top of this file for the rationale.
-#
-# Deliberately narrow: only touches the specific dirs a template opts into,
-# never the config files or the rest of volumes/<svc>/. 1777 (sticky bit)
-# rather than plain 777 so, on any path a container might one day share
-# with another service, one container's files can't be deleted by another.
-# ---------------------------------------------------------------------------
-_ensure_writable_dirs() {
-  local svc="$1" dirs="$2"
-  [[ -z "$dirs" ]] && return 0
-
-  local vol_dir="${PRESTO_VOLUMES_DIR}/${svc}"
-  local -a made=()
-
-  for d in $dirs; do
-    local path="$vol_dir/$d"
-    mkdir -p "$path" || { log_warn "[$svc] could not create writable dir: $path"; continue; }
-    chmod 1777 "$path" || { log_warn "[$svc] could not chmod writable dir: $path"; continue; }
-    made+=("$d")
-  done
-
-  (( ${#made[@]} > 0 )) && log_info "[$svc] runtime-writable (1777, any uid): ${made[*]}"
+  (( ${#seeded[@]}  > 0 )) && log_info  "[$svc] volume configs seeded : ${seeded[*]}"
+  (( ${#skipped[@]} > 0 )) && log_debug "[$svc] volume configs kept   : ${skipped[*]}"
   return 0
 }
