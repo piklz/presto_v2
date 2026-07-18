@@ -1,0 +1,9 @@
+# =============================================================================
+#  Preset: Media Server & Automation
+# =============================================================================
+# Plex and Jellyfin are BOTH included — most people run one, not both.
+# Deselect whichever you don't want on the review screen; nothing here
+# forces both to deploy.
+PRESET_NAME="Media Server & Automation"
+PRESET_DESC="Plex/Jellyfin playback + the full *arr download automation pipeline (indexers, download client, request manager)"
+PRESET_SERVICES="plex jellyfin tautulli sonarr radarr lidarr prowlarr jackett flaresolverr qbittorrent seerr"

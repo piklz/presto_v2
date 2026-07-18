@@ -1,0 +1,6 @@
+# =============================================================================
+#  Preset: Photo Library
+# =============================================================================
+PRESET_NAME="Photo Library"
+PRESET_DESC="Self-hosted photo/video backup (Immich) plus its companion admin power-tools"
+PRESET_SERVICES="immich immich-power-tools"

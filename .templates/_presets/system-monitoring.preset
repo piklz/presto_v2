@@ -1,0 +1,6 @@
+# =============================================================================
+#  Preset: System & Hardware Monitoring
+# =============================================================================
+PRESET_NAME="System & Hardware Monitoring"
+PRESET_DESC="Resource monitor (Glances), uptime monitor (Uptime Kuma), and X728 UPS/power HAT monitoring for Raspberry Pi"
+PRESET_SERVICES="glances uptimekuma prestox728"

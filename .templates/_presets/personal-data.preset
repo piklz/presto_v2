@@ -1,0 +1,8 @@
+# =============================================================================
+#  Preset: Personal Data & Sync
+# =============================================================================
+# Trilium also appears in Office — duplicated here on purpose, since notes
+# are as much "personal data to keep in sync" as they are office tooling.
+PRESET_NAME="Personal Data & Sync"
+PRESET_DESC="Cross-device file sync (Syncthing), home inventory tracking (Homebox), and notes (Trilium)"
+PRESET_SERVICES="homebox syncthing trilium"

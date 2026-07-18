@@ -1,0 +1,6 @@
+# =============================================================================
+#  Preset: Home Automation
+# =============================================================================
+PRESET_NAME="Home Automation"
+PRESET_DESC="Home Assistant plus the MQTT broker it needs for smart home device integration"
+PRESET_SERVICES="homeassistant mosquitto"

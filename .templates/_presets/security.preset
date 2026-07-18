@@ -1,0 +1,9 @@
+# =============================================================================
+#  Preset: Password Manager & TLS
+# =============================================================================
+# Caddy also appears in Core Infrastructure — duplicated here on purpose:
+# Vaultwarden genuinely shouldn't be run without TLS termination in front
+# of it, so this preset is self-contained even if you skip Core Infra.
+PRESET_NAME="Password Manager & TLS"
+PRESET_DESC="Vaultwarden (self-hosted Bitwarden-compatible password manager) plus Caddy for the HTTPS termination it needs"
+PRESET_SERVICES="vaultwarden caddy"

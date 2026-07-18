@@ -291,6 +291,75 @@ _view_file() {
 }
 
 # ---------------------------------------------------------------------------
+# Best-effort check: is $svc's container already running right now? Used to
+# avoid pre-checking a preset service that's already up under a name presto
+# doesn't manage as a fresh selection — we don't want to nudge the user
+# toward a duplicate deployment. Uses the same container_name extraction as
+# _check_port_conflicts; falls back to the service dir name itself as a
+# heuristic when service.yml has no explicit container_name set.
+# ---------------------------------------------------------------------------
+_svc_is_running() {
+  local svc="$1"
+  local yml="$TEMPLATES_DIR/$svc/service.yml"
+  local cname=""
+  [[ -f "$yml" ]] && { cname=$(grep -oP "(?<=container_name:\s{0,10})\S+" "$yml" 2>/dev/null | head -1) || true; }
+  cname="${cname:-$svc}"
+  docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$cname"
+}
+
+# ---------------------------------------------------------------------------
+# Preset bundles — themed groups of services from .templates/_presets/*.preset.
+# Each preset file just declares PRESET_NAME / PRESET_DESC / PRESET_SERVICES;
+# it's a SELECTION LIST, never a standalone compose file — the actual
+# deployment still goes through the normal per-service _deploy_service path,
+# so every existing safety check (drift-check, port conflicts, writable-dir
+# checks) applies identically whether a service was hand-picked or came from
+# a preset. Returns the preset's space-separated service list on stdout (for
+# the caller to merge into the normal selection screen); all diagnostics go
+# to stderr via log_* so stdout stays clean for command substitution.
+# ---------------------------------------------------------------------------
+_load_preset() {
+  local preset_dir="$TEMPLATES_DIR/_presets"
+  local -a preset_files=()
+  [[ -d "$preset_dir" ]] && preset_files=("$preset_dir"/*.preset)
+
+  local -a items=() paths=()
+  local pf
+  for pf in "${preset_files[@]}"; do
+    [[ -f "$pf" ]] || continue
+    local PRESET_NAME="" PRESET_DESC="" PRESET_SERVICES=""
+    # shellcheck source=/dev/null
+    source "$pf" 2>/dev/null || continue
+    [[ -z "$PRESET_SERVICES" ]] && continue
+    items+=("${PRESET_NAME:-$(basename "$pf" .preset)}  —  ${PRESET_DESC}")
+    paths+=("$pf")
+  done
+
+  if (( ${#items[@]} == 0 )); then
+    log_error "No valid presets found in $preset_dir (missing PRESET_SERVICES?)"
+    return 1
+  fi
+
+  local choice
+  choice=$(printf '%s\n' "${items[@]}" \
+    | gum choose --header="📦  Load a preset — its services get MERGED into your selection below, nothing deploys yet" \
+  ) || return 1
+  [[ -z "$choice" ]] && return 1
+
+  local i
+  for i in "${!items[@]}"; do
+    if [[ "${items[$i]}" == "$choice" ]]; then
+      local PRESET_NAME="" PRESET_DESC="" PRESET_SERVICES=""
+      # shellcheck source=/dev/null
+      source "${paths[$i]}"
+      echo "$PRESET_SERVICES"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# ---------------------------------------------------------------------------
 # Build stack — service picker → pre-flight → compose generator
 # ---------------------------------------------------------------------------
 _build_stack() {
@@ -331,16 +400,59 @@ _build_stack() {
     items+=("${icon}  ${svc}  —  ${desc}")
   done
 
-  # Pre-select previously chosen services
-  local -a sel_flags=()
+  # ── Optional: load a preset to merge into the selection (never replaces) ───
+  local -a preset_svcs=()
+  if [[ -d "$TEMPLATES_DIR/_presets" ]] && [[ -n "$(ls -A "$TEMPLATES_DIR/_presets" 2>/dev/null)" ]]; then
+    if ui_confirm "Load a preset bundle to merge into your selection?"; then
+      local preset_out
+      if preset_out=$(_load_preset); then
+        read -r -a preset_svcs <<< "$preset_out"
+      fi
+    fi
+  fi
+
+  # Pre-select previously chosen services, plus anything from a loaded
+  # preset. Preset services already in the prior selection are just a no-op
+  # merge; ones whose container is ALREADY RUNNING (but outside presto's own
+  # selection.txt — e.g. deployed some other way) are deliberately left
+  # unchecked rather than nudging toward a duplicate deployment. Either way
+  # this only affects what's pre-ticked — the interactive screen below is
+  # still the actual decision point, nothing here deploys anything.
+  local -a preselect=()
   if [[ -f "$SELECTION_FILE" ]]; then
     while IFS= read -r prev; do
       [[ -z "$prev" ]] && continue
-      for item in "${items[@]}"; do
-        [[ "$item" == *"  ${prev}  "* ]] && sel_flags+=("--selected=${item}") && break
-      done
+      preselect+=("$prev")
     done < "$SELECTION_FILE"
   fi
+
+  local -a preset_added=() preset_skipped_running=()
+  local p
+  for p in "${preset_svcs[@]}"; do
+    [[ -z "$p" ]] && continue
+    local already=0 e
+    for e in "${preselect[@]}"; do [[ "$e" == "$p" ]] && already=1 && break; done
+    if (( already )); then
+      continue
+    elif _svc_is_running "$p"; then
+      preset_skipped_running+=("$p")
+    else
+      preselect+=("$p")
+      preset_added+=("$p")
+    fi
+  done
+
+  (( ${#preset_added[@]} > 0 )) && \
+    gum style --bold --foreground 212 "Preset merged — pre-checked below: ${preset_added[*]}"
+  (( ${#preset_skipped_running[@]} > 0 )) && \
+    ui_warn "Already running (not pre-checking, to avoid a duplicate):\n$(printf '  • %s\n' "${preset_skipped_running[@]}")"
+
+  local -a sel_flags=()
+  for prev in "${preselect[@]}"; do
+    for item in "${items[@]}"; do
+      [[ "$item" == *"  ${prev}  "* ]] && sel_flags+=("--selected=${item}") && break
+    done
+  done
 
   gum style --bold --foreground 212 \
     "↑↓ navigate   /  fuzzy search   space  toggle   enter  confirm"

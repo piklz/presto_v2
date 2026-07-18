@@ -1,0 +1,9 @@
+# =============================================================================
+#  Preset: Core Infrastructure
+# =============================================================================
+# The baseline most homelabs want regardless of theme — usually worth
+# deploying once, early, before layering on themed bundles like Media or
+# Office.
+PRESET_NAME="Core Infrastructure"
+PRESET_DESC="Reverse proxy (Caddy), Docker management UI (Portainer), container update watcher (Docksentry), and Presto's own backup companion (PrestoBack)"
+PRESET_SERVICES="caddy portainer docksentry prestoback"

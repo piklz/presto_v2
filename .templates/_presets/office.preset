@@ -1,0 +1,6 @@
+# =============================================================================
+#  Preset: Office & Productivity
+# =============================================================================
+PRESET_NAME="Office & Productivity"
+PRESET_DESC="Home dashboard, note-taking, and handy IT/dev utility toolkits for daily use"
+PRESET_SERVICES="trilium homepage ittools omni-tools"

@@ -1,0 +1,10 @@
+# =============================================================================
+#  Preset: Dashboard Options
+# =============================================================================
+# All three are homepage-style dashboard apps that do the same basic job —
+# this preset exists to let you try them side by side. Homepage also
+# appears in the Office preset; that's intentional, not a mistake, since
+# it's a genuinely reasonable pick for both.
+PRESET_NAME="Dashboard Options"
+PRESET_DESC="Three competing homelab dashboard apps (Homarr, Homepage, Heimdall) to compare side by side — pick one at the review screen"
+PRESET_SERVICES="homarr homepage heimdall"
