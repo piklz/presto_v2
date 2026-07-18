@@ -189,6 +189,7 @@ system_tools_menu() {
     "🔄  Check for Presto updates" \
     "📊  Quick resource snapshot" \
     "📦  Check & apply OS updates (apt)" \
+    "🔌  Update Docker Compose plugin (apt)" \
     "🧹  Docker system prune (all-in-one)" \
     "💤  Disable swap" \
     "🎚   Set swappiness to 0" \
@@ -198,14 +199,15 @@ system_tools_menu() {
   ) || return 0
 
   case "$choice" in
-    *"Presto updates"*) _check_for_updates_manual ;;
-    *"snapshot"*)        _resource_snapshot ;;
-    *"OS updates"*)      _check_apt_updates ;;
-    *"system prune"*)    _docker_system_prune ;;
-    *"Disable swap"*)    _disable_swap ;;
-    *"swappiness"*)      _set_swappiness ;;
-    *"log2ram"*)         _install_log2ram ;;
-    *"theme"*)           ui_theme_menu ;;
+    *"Presto updates"*)   _check_for_updates_manual ;;
+    *"snapshot"*)          _resource_snapshot ;;
+    *"OS updates"*)        _check_apt_updates ;;
+    *"Compose plugin"*)    _run_script "update_compose.sh" "Docker Compose plugin updated" ;;
+    *"system prune"*)      _docker_system_prune ;;
+    *"Disable swap"*)      _disable_swap ;;
+    *"swappiness"*)        _set_swappiness ;;
+    *"log2ram"*)           _install_log2ram ;;
+    *"theme"*)             ui_theme_menu ;;
   esac
 }
 

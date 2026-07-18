@@ -169,12 +169,12 @@ _run_script() {
 }
 
 # ---------------------------------------------------------------------------
-# Docker image update (pulls latest images for running stack)
+# Docker image update (pulls latest images, rebuilds if needed, restarts)
 # ---------------------------------------------------------------------------
 docker_compose_update() {
   docker_check || return 0
   check_disk_space 500 || return 1
-  _run_script "update_compose.sh" "Docker images updated"
+  _run_script "update.sh" "Docker images updated"
 }
 
 # ---------------------------------------------------------------------------

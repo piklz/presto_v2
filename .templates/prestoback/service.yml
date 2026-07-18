@@ -7,6 +7,8 @@
     restart: unless-stopped
     env_file:
       - ./services/prestoback/prestoback.env
+    environment:
+      - PRESTOBACK_COMPOSE_FILE=${PWD}/docker-compose.yml  
     ports:
       - "8778:8778"
     volumes:
@@ -19,8 +21,8 @@
       # Docker socket — needed for container stop/start during backup/restore
       # and for the self-update mechanism.
       - /var/run/docker.sock:/var/run/docker.sock      
-      # PrestoBack's accses to compose stack
-      - /home/pi/presto:/home/pi/presto:ro
+      # PrestoBack's access to compose stack 
+      - ${PWD}:${PWD}:ro
     healthcheck:
       # wget is available in the alpine runtime image.
       test: ["CMD", "wget", "-qO-", "http://localhost:8778/api/status"]
@@ -36,7 +38,7 @@
     labels:
       - homepage.group=SYSTEM
       - homepage.name=prestoback
-      - homepage.icon=prestoback.png
+      - homepage.icon=docker.png
       - homepage.href=http://${SYSTEM_HOSTNAME}:8778
       - homepage.description=container backup and restore utility
       - com.presto.app=prestoback
