@@ -214,7 +214,7 @@ _check_port_conflicts() {
     [[ -f "$yml" ]] || continue
     # Extract explicit container_name if set, otherwise fall back to service name
     local cname
-    cname=$(grep -oP "(?<=container_name:\s{0,10})\S+" "$yml" 2>/dev/null | head -1)
+    cname=$(grep -oP "(?<=container_name:\s{0,10})\S+" "$yml" 2>/dev/null | head -1) || true
     owned_containers["${cname:-$svc}"]=1
   done
 
@@ -231,7 +231,7 @@ _check_port_conflicts() {
         _port_in_use "$p" || return 0
         # Port is in use — find out which container holds it
         local holder
-        holder=$(docker ps --format "{{.Names}} {{.Ports}}" 2>/dev/null           | awk -v pat=":${p}->" '$0 ~ pat {print $1}' | head -1)
+        holder=$(docker ps --format "{{.Names}} {{.Ports}}" 2>/dev/null           | awk -v pat=":${p}->" '$0 ~ pat {print $1}' | head -1) || true
         # If the holder is one of our selected services, it will be replaced —
         # not a real conflict, skip silently
         if [[ -n "$holder" && -v "owned_containers[$holder]" ]]; then
@@ -678,7 +678,7 @@ _handle_config_drift() {
 
     case "$choice" in
       "View diff")
-        local diff_out; diff_out=$(diff -ru "$dst" "$src" 2>&1)
+        local diff_out; diff_out=$(diff -ru "$dst" "$src" 2>&1) || true
         if [[ -z "$diff_out" ]]; then
           ui_notify "No textual differences" "'${cfg}' has no content differences between the template and services/$svc/$cfg.\n\nThe checksum mismatch was likely metadata-only, or this update was\nalready applied — safe to choose 'Keep mine' to clear the prompt."
         else
@@ -923,7 +923,7 @@ _push_configs_menu() {
 
       case "$choice" in
         "View diff"*)
-          local diff_out; diff_out=$(diff -ru "$live" "$staged" 2>&1)
+          local diff_out; diff_out=$(diff -ru "$live" "$staged" 2>&1) || true
           if [[ -z "$diff_out" ]]; then
             ui_notify "No textual differences" "'${cfg}' has no content differences between staging and the live copy.\n\nThe checksum mismatch was likely metadata-only, or this was already\npushed — safe to choose 'Skip for now' to clear the prompt."
           else
