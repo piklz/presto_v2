@@ -149,6 +149,11 @@ while true; do
   choice=$(gum choose \
     --header "🚀  PRESTO  v${VERSION}  —  Docker Stack Manager" \
     --header.foreground="212" \
+    --cursor="❯ " \
+    --cursor.foreground="212" \
+    --selected.foreground="255" \
+    --selected.background="57" \
+    --selected.bold \
     "${menu_items[@]}" \
   ) || { log_info "Bye!"; exit 0; }
 
