@@ -678,7 +678,12 @@ _handle_config_drift() {
 
     case "$choice" in
       "View diff")
-        diff -ru "$dst" "$src" 2>&1 | gum pager
+        local diff_out; diff_out=$(diff -ru "$dst" "$src" 2>&1)
+        if [[ -z "$diff_out" ]]; then
+          ui_notify "No textual differences" "'${cfg}' has no content differences between the template and services/$svc/$cfg.\n\nThe checksum mismatch was likely metadata-only, or this update was\nalready applied — safe to choose 'Keep mine' to clear the prompt."
+        else
+          printf '%s\n' "$diff_out" | gum pager || true
+        fi
         continue
         ;;
       "Apply update"*)
@@ -918,7 +923,12 @@ _push_configs_menu() {
 
       case "$choice" in
         "View diff"*)
-          diff -ru "$live" "$staged" 2>&1 | gum pager
+          local diff_out; diff_out=$(diff -ru "$live" "$staged" 2>&1)
+          if [[ -z "$diff_out" ]]; then
+            ui_notify "No textual differences" "'${cfg}' has no content differences between staging and the live copy.\n\nThe checksum mismatch was likely metadata-only, or this was already\npushed — safe to choose 'Skip for now' to clear the prompt."
+          else
+            printf '%s\n' "$diff_out" | gum pager || true
+          fi
           continue
           ;;
         "Push to live"*)
@@ -932,8 +942,9 @@ _push_configs_menu() {
           fi
 
           if (( ok )); then
-            _manifest_set "$pushed_manifest" "$cfg" "$(_config_checksum "$staged")"
             log_info "[$svc] pushed $cfg → volumes/$svc/$cfg (live)"
+            _manifest_set "$pushed_manifest" "$cfg" "$(_config_checksum "$staged")" \
+              || log_error "[$svc] push succeeded but FAILED to record it in the pushed-manifest — will re-offer this item next time even though it's already live"
             local dup=0
             for r in "${restart_candidates[@]}"; do [[ "$r" == "$svc" ]] && dup=1 && break; done
             (( dup )) || restart_candidates+=("$svc")
