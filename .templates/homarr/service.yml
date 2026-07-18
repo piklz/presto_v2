@@ -4,12 +4,11 @@
 
   homarr:
     container_name: homarr
-    image: ghcr.io/ajnart/homarr:latest
+    image: ghcr.io/homarr-labs/homarr:latest
     restart: unless-stopped
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ${VOLUMES_DIR}/homarr/config:/app/data/configs
-      - ${VOLUMES_DIR}/homarr/icons:/app/public/icons
+      - /var/run/docker.sock:/var/run/docker.sock # Optional, only if you want docker integration
+      - ${VOLUMES_DIR}/homarr/appdata:/appdata    
     ports:
       - 7575:7575
     env_file:
