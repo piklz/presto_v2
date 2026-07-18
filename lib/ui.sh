@@ -90,6 +90,95 @@ ui_confirm() {
     "$1"
 }
 
+# ---------------------------------------------------------------------------
+# Theming — a handful of named palettes, applied by exporting gum's own env
+# vars (GUM_CHOOSE_*). Since every gum choose call across every lib/*.sh
+# file just reads these from the environment, swapping a theme mid-session
+# takes effect on the very next menu draw — no restart needed. The prompt
+# color used by ui_confirm's Yes/No buttons is deliberately NOT themed here
+# (only cursor/selected/header) so it stays visually distinct from list
+# menus regardless of theme — tweak PROMPT_FOREGROUND per-theme too if you'd
+# rather it match.
+# ---------------------------------------------------------------------------
+_apply_theme() {
+  local theme="${1:-pink}"
+
+  case "$theme" in
+    ocean)
+      export GUM_CHOOSE_CURSOR="❯ "
+      export GUM_CHOOSE_CURSOR_FOREGROUND="39"
+      export GUM_CHOOSE_CURSOR_BACKGROUND="24"
+      export GUM_CHOOSE_SELECTED_FOREGROUND="255"
+      export GUM_CHOOSE_SELECTED_BACKGROUND="25"
+      export GUM_CHOOSE_HEADER_FOREGROUND="39"
+      ;;
+    matrix)
+      export GUM_CHOOSE_CURSOR="❯ "
+      export GUM_CHOOSE_CURSOR_FOREGROUND="46"
+      export GUM_CHOOSE_CURSOR_BACKGROUND="22"
+      export GUM_CHOOSE_SELECTED_FOREGROUND="255"
+      export GUM_CHOOSE_SELECTED_BACKGROUND="28"
+      export GUM_CHOOSE_HEADER_FOREGROUND="46"
+      ;;
+    sunset)
+      export GUM_CHOOSE_CURSOR="❯ "
+      export GUM_CHOOSE_CURSOR_FOREGROUND="208"
+      export GUM_CHOOSE_CURSOR_BACKGROUND="94"
+      export GUM_CHOOSE_SELECTED_FOREGROUND="255"
+      export GUM_CHOOSE_SELECTED_BACKGROUND="166"
+      export GUM_CHOOSE_HEADER_FOREGROUND="208"
+      ;;
+    mono)
+      export GUM_CHOOSE_CURSOR="❯ "
+      export GUM_CHOOSE_CURSOR_FOREGROUND="255"
+      export GUM_CHOOSE_CURSOR_BACKGROUND="240"
+      export GUM_CHOOSE_SELECTED_FOREGROUND="232"
+      export GUM_CHOOSE_SELECTED_BACKGROUND="250"
+      export GUM_CHOOSE_HEADER_FOREGROUND="255"
+      ;;
+    pink|*)
+      # Also the fallback for an unrecognised/typo'd PRESTO_THEME value —
+      # never hard-fail the whole menu system over a bad theme name.
+      export GUM_CHOOSE_CURSOR="❯ "
+      export GUM_CHOOSE_CURSOR_FOREGROUND="212"
+      export GUM_CHOOSE_CURSOR_BACKGROUND="53"
+      export GUM_CHOOSE_SELECTED_FOREGROUND="255"
+      export GUM_CHOOSE_SELECTED_BACKGROUND="57"
+      export GUM_CHOOSE_HEADER_FOREGROUND="212"
+      ;;
+  esac
+
+  export GUM_CHOOSE_SELECTED_PREFIX="✅ "
+  export GUM_CHOOSE_UNSELECTED_PREFIX="⬜ "
+}
+
+# System Tools → 🎨 Change theme. Live-previews by applying immediately in
+# THIS session, then persists the choice to presto.conf so it's the default
+# on next launch too.
+ui_theme_menu() {
+  local choice
+  choice=$(gum choose \
+    --header "🎨  Pick a theme (applies instantly, saved for next time too)" \
+    "pink    — hot pink / magenta (default)" \
+    "ocean   — blue / cyan" \
+    "matrix  — green on black" \
+    "sunset  — orange / amber" \
+    "mono    — greyscale, minimal" \
+  ) || return 0
+
+  local theme="${choice%%  *}"
+  _apply_theme "$theme"
+
+  if grep -q "^PRESTO_THEME=" "$PRESTO_CONF" 2>/dev/null; then
+    sed -i "s|^PRESTO_THEME=.*|PRESTO_THEME=\"${theme}\"|" "$PRESTO_CONF"
+  else
+    printf '\nPRESTO_THEME="%s"\n' "$theme" >> "$PRESTO_CONF"
+  fi
+
+  log_info "Theme set to '${theme}' — saved to presto.conf"
+  ui_notify "Theme applied ✓" "'${theme}' is active now and will be the default next time you launch presto."
+}
+
 ui_notify() {
   # ui_notify "Title" "body text..."
   local title="$1"; shift

@@ -193,6 +193,7 @@ system_tools_menu() {
     "💤  Disable swap" \
     "🎚   Set swappiness to 0" \
     "📂  Install log2ram" \
+    "🎨  Change theme" \
     "← Back" \
   ) || return 0
 
@@ -204,6 +205,7 @@ system_tools_menu() {
     *"Disable swap"*)    _disable_swap ;;
     *"swappiness"*)      _set_swappiness ;;
     *"log2ram"*)         _install_log2ram ;;
+    *"theme"*)           ui_theme_menu ;;
   esac
 }
 

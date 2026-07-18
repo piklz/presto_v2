@@ -26,3 +26,9 @@ PRESTO_VOLUMES_DIR="volumes"
 # External drive / NFS / custom layout — use an absolute path:
 # PRESTO_VOLUMES_DIR="/mnt/nas/docker/volumes"
 # PRESTO_VOLUMES_DIR="/home/user/dockerstackz/media"
+
+# ── Menu color theme ──────────────────────────────────────────────────────────
+# Options: pink (default) | ocean | matrix | sunset | mono
+# Change anytime via System Tools → 🎨 Change theme — that also updates this
+# line automatically, this default just covers a fresh install.
+PRESTO_THEME="pink"

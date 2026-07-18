@@ -65,6 +65,7 @@ fi
 : "${PRESTO_SUBNET:=172.19.0.0/24}"
 : "${PRESTO_COMPOSE_FILE:=$PRESTO_DIR/docker-compose.yml}"
 : "${PRESTO_VOLUMES_DIR:=$PRESTO_DIR/volumes}"
+: "${PRESTO_THEME:=pink}"
 
 # Resolve PRESTO_VOLUMES_DIR to an absolute path.
 # presto.conf may set a bare relative value ("volumes") for brevity — bash
@@ -120,20 +121,10 @@ EOF
 done
 export VERBOSE SHOW_INSTALL
 
-# ---------------------------------------------------------------------------
-# gum visual theme — set ONCE here, inherited by every `gum choose` call
-# across every lib/*.sh file (they're all `source`d into this same shell,
-# and gum reads these as its own env vars — no per-call-site flags needed).
-# Change the look everywhere at once by editing these values only.
-# ---------------------------------------------------------------------------
-export GUM_CHOOSE_CURSOR="❯ "
-export GUM_CHOOSE_CURSOR_FOREGROUND="212"
-export GUM_CHOOSE_CURSOR_BACKGROUND="53"
-export GUM_CHOOSE_SELECTED_FOREGROUND="255"
-export GUM_CHOOSE_SELECTED_BACKGROUND="57"
-export GUM_CHOOSE_SELECTED_PREFIX="✅ "
-export GUM_CHOOSE_UNSELECTED_PREFIX="⬜ "
-export GUM_CHOOSE_HEADER_FOREGROUND="212"
+# gum visual theme — see ui.sh's _apply_theme for the palette definitions.
+# Driven by PRESTO_THEME (presto.conf), changeable live via System Tools →
+# 🎨 Change theme without needing to edit this file.
+_apply_theme "$PRESTO_THEME"
 
 # ---------------------------------------------------------------------------
 # Startup
