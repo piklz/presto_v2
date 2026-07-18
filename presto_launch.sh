@@ -121,6 +121,21 @@ done
 export VERBOSE SHOW_INSTALL
 
 # ---------------------------------------------------------------------------
+# gum visual theme — set ONCE here, inherited by every `gum choose` call
+# across every lib/*.sh file (they're all `source`d into this same shell,
+# and gum reads these as its own env vars — no per-call-site flags needed).
+# Change the look everywhere at once by editing these values only.
+# ---------------------------------------------------------------------------
+export GUM_CHOOSE_CURSOR="❯ "
+export GUM_CHOOSE_CURSOR_FOREGROUND="212"
+export GUM_CHOOSE_CURSOR_BACKGROUND="53"
+export GUM_CHOOSE_SELECTED_FOREGROUND="255"
+export GUM_CHOOSE_SELECTED_BACKGROUND="57"
+export GUM_CHOOSE_SELECTED_PREFIX="✅ "
+export GUM_CHOOSE_UNSELECTED_PREFIX="⬜ "
+export GUM_CHOOSE_HEADER_FOREGROUND="212"
+
+# ---------------------------------------------------------------------------
 # Startup
 # ---------------------------------------------------------------------------
 ui_check_gum
@@ -148,12 +163,6 @@ while true; do
 
   choice=$(gum choose \
     --header "🚀  PRESTO  v${VERSION}  —  Docker Stack Manager" \
-    --header.foreground="212" \
-    --cursor="❯ " \
-    --cursor.foreground="212" \
-    --selected.foreground="255" \
-    --selected.background="57" \
-    --selected.bold \
     "${menu_items[@]}" \
   ) || { log_info "Bye!"; exit 0; }
 

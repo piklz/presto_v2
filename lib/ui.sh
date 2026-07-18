@@ -83,7 +83,11 @@ ui_check_gum() {
 # ---------------------------------------------------------------------------
 
 ui_confirm() {
-  gum confirm --affirmative="Yes" --negative="No" --prompt.foreground="212" "$1"
+  gum confirm \
+    --affirmative="Yes" --negative="No" \
+    --prompt.foreground="212" \
+    --selected.foreground="255" --selected.background="57" \
+    "$1"
 }
 
 ui_notify() {
