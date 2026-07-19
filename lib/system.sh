@@ -292,7 +292,7 @@ _check_apt_updates() {
 
   ui_warn "${count} package(s) can be upgraded."
   ui_confirm "Apply updates now? (sudo apt upgrade -y)" || return 0
-  run_cmd "Upgrading packages..." sudo apt upgrade -y
+  run_cmd "Upgrading packages..." sudo apt-get upgrade -y
   ui_notify "Done ✓" "${count} package(s) upgraded.\n\nReboot if a kernel or firmware update was included."
 }
 
