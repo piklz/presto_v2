@@ -236,10 +236,40 @@ _set_swappiness() {
 # Check apt's upgradable package list and let the user choose to apply it.
 _check_apt_updates() {
   ui_confirm "Check for OS package updates? (sudo apt update)" || return 0
-  run_cmd "Checking for updates..." sudo apt-get update -qq
+
+  # Captured directly (not via run_cmd's spinner) so we can actually inspect
+  # the output — a repo signature failure is a hard "Error:" that apt still
+  # exits nonzero for, but run_cmd hides everything by default and the
+  # exit code was never being checked here at all, so this used to fail
+  # completely silently.
+  local apt_out apt_rc=0
+  apt_out=$(sudo apt-get update -qq 2>&1) || apt_rc=$?
+
+  if (( apt_rc != 0 )); then
+    if printf '%s' "$apt_out" | grep -q "repo.charm.sh" \
+      && printf '%s' "$apt_out" | grep -qiE "NO_PUBKEY|is not signed|Missing key|EXPKEYSIG"; then
+      log_warn "Charm (gum) apt repo signature check failed — key likely rotated"
+      if ui_confirm "The Charm (gum) apt repo's signing key has rotated and can't be\nverified right now — this only affects future 'gum' updates via\napt, nothing else on your system is broken.\n\nRefresh the key now?"; then
+        if _refresh_charm_gpg_key; then
+          log_info "Charm apt key refreshed — retrying apt update"
+          apt_rc=0
+          apt_out=$(sudo apt-get update -qq 2>&1) || apt_rc=$?
+          if (( apt_rc == 0 )); then
+            ui_notify "Fixed ✓" "Charm apt key refreshed — apt update now succeeds cleanly."
+          else
+            ui_error "Key refreshed, but apt update still reports errors:\n\n$(printf '%s' "$apt_out" | tail -10)"
+          fi
+        else
+          ui_error "Failed to refresh the Charm apt key — check your internet connection.\n\nTo do it manually:\n  curl -fsSL https://repo.charm.sh/apt/gpg.key | sudo gpg --yes --dearmor -o /etc/apt/keyrings/charm.gpg"
+        fi
+      fi
+    else
+      ui_warn "apt update reported errors — the package list may be incomplete:\n\n$(printf '%s' "$apt_out" | tail -10)"
+    fi
+  fi
 
   local count
-  count=$(apt list --upgradable 2>/dev/null | grep -vc "^Listing...")
+  count=$(apt list --upgradable 2>/dev/null | grep -vc "^Listing...") || true
 
   if (( count == 0 )); then
     ui_notify "Up to date ✓" "No package updates available."

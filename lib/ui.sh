@@ -34,6 +34,19 @@ _bootstrap_run() {
 # ---------------------------------------------------------------------------
 # Install gum if missing (runs once, silently thereafter)
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Charm (gum) apt repo signing key — repo.charm.sh rotates this key
+# periodically. When it does, `apt update` fails signature verification for
+# that ONE repo (others are unaffected), which is easy to miss since apt
+# still processes the rest. Shared by ui_check_gum's first-time install and
+# system.sh's _check_apt_updates recovery path, so the fetch logic exists
+# in exactly one place.
+# ---------------------------------------------------------------------------
+_refresh_charm_gpg_key() {
+  sudo mkdir -p /etc/apt/keyrings
+  curl -fsSL https://repo.charm.sh/apt/gpg.key | sudo gpg --yes --dearmor -o /etc/apt/keyrings/charm.gpg
+}
+
 ui_check_gum() {
   command -v gum &>/dev/null && return 0
 
@@ -49,9 +62,7 @@ ui_check_gum() {
 
   if grep -qiE "debian|ubuntu|raspbian" /etc/os-release 2>/dev/null; then
     echo "[presto] Installing gum via apt (Charm repo)..."
-    sudo mkdir -p /etc/apt/keyrings
-    _bootstrap_run "Fetching Charm GPG key" bash -c \
-      'curl -fsSL https://repo.charm.sh/apt/gpg.key | sudo gpg --yes --dearmor -o /etc/apt/keyrings/charm.gpg' \
+    _bootstrap_run "Fetching Charm GPG key" _refresh_charm_gpg_key \
       || { log_error "gum install failed"; exit 1; }
     echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" \
       | sudo tee /etc/apt/sources.list.d/charm.list >/dev/null
