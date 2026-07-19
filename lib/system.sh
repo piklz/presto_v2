@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  lib/system.sh — Arch detection, disk, git, swap, log2ram, system tools
+#  lib/system.sh — Arch detection, disk, git, swappiness, system tools
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -109,7 +109,7 @@ _update_status_refresh() {
   if (( behind > 0 )); then
     export PRESTO_UPDATE_AVAILABLE=1
     if [[ ! -f "$PRESTO_DIR/.update_notified" ]]; then
-      ui_warn "Presto is ${behind} commit(s) behind.\nUse '⬆️  Update Presto' from the menu, or System Tools → Check for Presto updates. "
+      ui_warn "Presto is ${behind} commit(s) behind.\nUse '⬆️  Update Presto' from the menu, or System Tools → Check for Presto updates."
       touch "$PRESTO_DIR/.update_notified"
     fi
   else
@@ -203,10 +203,7 @@ system_tools_menu() {
     "📊  Quick resource snapshot" \
     "📦  Check & apply OS updates (apt)" \
     "🔌  Update Docker Compose plugin (apt)" \
-    "🧹  Docker system prune (all-in-one)" \
-    "💤  Disable swap" \
-    "🎚   Set swappiness to 0" \
-    "📂  Install log2ram" \
+    "🎚   Set swappiness to 0  (favour RAM over swap)" \
     "🎨  Change theme" \
     "← Back" \
   ) || return 0
@@ -216,23 +213,16 @@ system_tools_menu() {
     *"snapshot"*)          _resource_snapshot ;;
     *"OS updates"*)        _check_apt_updates ;;
     *"Compose plugin"*)    _docker_engine_update ;;
-    *"system prune"*)      _docker_system_prune ;;
-    *"Disable swap"*)      _disable_swap ;;
     *"swappiness"*)        _set_swappiness ;;
-    *"log2ram"*)           _install_log2ram ;;
     *"theme"*)             ui_theme_menu ;;
   esac
 }
 
-_disable_swap() {
-  ui_confirm "Disable dphys swap file? (Recommended with ≥4GB RAM)" || return 0
-  run_cmd "Stopping swap..."           sudo dphys-swapfile swapoff
-  run_cmd "Uninstalling swap..."       sudo dphys-swapfile uninstall
-  run_cmd "Removing swap from init..." sudo update-rc.d dphys-swapfile remove
-  sudo systemctl disable dphys-swapfile 2>/dev/null || true
-  ui_notify "Done ✓" "Swap disabled."
-}
-
+# Lower vm.swappiness = kernel favours keeping things in RAM and only
+# swaps as a last resort, vs the Debian default of 60 which swaps fairly
+# eagerly. Worth doing on a Pi regardless of which swap backend is in use
+# (dphys-swapfile, rpi-swap/zram, or a plain fstab swapfile) — this is a
+# kernel-level tunable underneath all of them, not tied to any one of them.
 _set_swappiness() {
   if grep -q "vm.swappiness" /etc/sysctl.conf; then
     sudo sed -i "/vm.swappiness/c\\vm.swappiness=0" /etc/sysctl.conf
@@ -240,23 +230,7 @@ _set_swappiness() {
     echo "vm.swappiness=0" | sudo tee -a /etc/sysctl.conf >/dev/null
   fi
   sudo sysctl vm.swappiness=0
-  ui_notify "Done ✓" "Swappiness set to 0."
-}
-
-_install_log2ram() {
-  if [[ -f /usr/bin/log2ram ]]; then
-    ui_notify "Already installed" "log2ram is already on this system."; return 0
-  fi
-  ui_confirm "Install log2ram? (Mounts /var/log in RAM to reduce disk writes)" || return 0
-
-  local tmp; tmp=$(mktemp -d)
-  run_cmd "Downloading log2ram..." \
-    curl -fsSL https://github.com/azlux/log2ram/archive/master.tar.gz -o "$tmp/log2ram.tar.gz"
-  tar -xzf "$tmp/log2ram.tar.gz" -C "$tmp"
-  chmod +x "$tmp/log2ram-master/install.sh"
-  (cd "$tmp/log2ram-master" && sudo ./install.sh)
-  rm -rf "$tmp"
-  ui_notify "log2ram installed ✓" "Reboot to activate."
+  ui_notify "Done ✓" "Swappiness set to 0.\n\nThe kernel will now avoid swapping to disk unless RAM is genuinely\nfull, instead of doing it fairly eagerly (Debian's default is 60).\nHelps responsiveness and reduces disk/SD-card writes."
 }
 
 # Check apt's upgradable package list and let the user choose to apply it.
@@ -302,14 +276,6 @@ _resource_snapshot() {
     "Disk     : ${disk}  (${PRESTO_DIR})" \
     "Temp     : ${temp}"
   gum input --placeholder "  Press Enter to continue..." --char-limit 0 >/dev/null 2>&1 || true
-}
-
-# Full docker system prune — broader than the per-resource prune scripts in
-# Docker Commands, so it gets an explicit warning before running.
-_docker_system_prune() {
-  ui_warn "This removes ALL unused containers, images, networks, build cache,\nand volumes — not just dangling ones. Anything not attached to a\nrunning container will be deleted."
-  ui_confirm "Continue with full Docker system prune?" || return 0
-  _run_script "prune-system.sh" "Docker system pruned"
 }
 
 # ---------------------------------------------------------------------------
