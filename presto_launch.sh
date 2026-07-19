@@ -141,8 +141,12 @@ while true; do
     "🐳  Docker Commands"
   )
   # Only show the update item when we actually know we're behind origin/main.
+  # Deliberately painted a fixed amber (matches ui_warn) rather than a theme
+  # color — this needs to read as "needs attention" the same way regardless
+  # of which palette is active, and shouldn't blend in with the cursor
+  # highlight the moment you're actually looking at it.
   [[ "${PRESTO_UPDATE_AVAILABLE:-0}" -eq 1 ]] && \
-    menu_items+=("⬆️   Update Presto  (update available)")
+    menu_items+=("$(printf '\033[1;38;5;214m⬆️   Update Presto  (update available)\033[0m')")
   menu_items+=(
     "⬆️   Update Docker Images"
     "🔧  Install Docker + Compose"
