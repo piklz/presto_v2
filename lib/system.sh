@@ -215,7 +215,7 @@ system_tools_menu() {
     *"Presto updates"*)   _check_for_updates_manual ;;
     *"snapshot"*)          _resource_snapshot ;;
     *"OS updates"*)        _check_apt_updates ;;
-    *"Compose plugin"*)    _run_script "update_compose.sh" "Docker Compose plugin updated" ;;
+    *"Compose plugin"*)    _docker_engine_update ;;
     *"system prune"*)      _docker_system_prune ;;
     *"Disable swap"*)      _disable_swap ;;
     *"swappiness"*)        _set_swappiness ;;

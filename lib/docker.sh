@@ -169,12 +169,58 @@ _run_script() {
 }
 
 # ---------------------------------------------------------------------------
-# Docker image update (pulls latest images, rebuilds if needed, restarts)
+# Docker image update — pulls latest images, rebuilds if needed, restarts.
 # ---------------------------------------------------------------------------
 docker_compose_update() {
   docker_check || return 0
   check_disk_space 500 || return 1
   _run_script "update.sh" "Docker images updated"
+}
+
+# ---------------------------------------------------------------------------
+# Docker Engine + Compose PLUGIN update (the apt-package layer underneath
+# Docker itself, not your container images — see docker_compose_update
+# above for that). Defers to presto-tools' richer updater (GitHub release
+# version checks, caching, security library alerts) when installed. If it's
+# not installed, offers to install it on the spot rather than just telling
+# the user to go do it manually; declining falls back to a minimal inline
+# apt update — no separate fallback script to maintain.
+# ---------------------------------------------------------------------------
+_docker_engine_update() {
+  docker_check || return 0
+
+  local pt_script="$USER_HOME/presto-tools/scripts/presto_docker-engine_update.sh"
+  if [[ -f "$pt_script" ]]; then
+    log_info "Using presto-tools' engine updater: $pt_script"
+    bash "$pt_script"
+    return 0
+  fi
+
+  if ui_confirm "presto-tools isn't installed — it gives full Docker Engine +\nCompose version checking (GitHub release tracking, caching, security\nlibrary alerts). Install it now?"; then
+    presto_tools_install
+    if [[ -f "$pt_script" ]]; then
+      bash "$pt_script"
+      return 0
+    fi
+    ui_warn "presto-tools install finished but the engine updater wasn't found\nat the expected path — using a basic apt update this time instead."
+  fi
+
+  _basic_compose_plugin_update
+}
+
+# Minimal, safe fallback with no presto-tools involved — just the apt
+# package itself. Deliberately does NOT stop/start the running stack: a
+# docker-compose-plugin version bump has nothing to do with your running
+# containers, so there's no reason to take the whole homelab offline for it.
+_basic_compose_plugin_update() {
+  local before after
+  before=$(docker compose version --short 2>/dev/null) || before="unknown"
+  run_cmd "Updating docker-compose-plugin..." sudo apt-get install -y docker-compose-plugin || {
+    ui_error "docker-compose-plugin update failed.\nTry manually: sudo apt-get install -y docker-compose-plugin"
+    return 1
+  }
+  after=$(docker compose version --short 2>/dev/null) || after="unknown"
+  ui_notify "Done ✓" "Docker Compose plugin: ${before} → ${after}"
 }
 
 # ---------------------------------------------------------------------------
