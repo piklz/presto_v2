@@ -134,11 +134,24 @@ git_do_update() {
 
   run_cmd "Pulling from GitHub..." git pull origin main || {
     log_error "git pull failed"
-    (( stash_created )) && git stash pop 2>/dev/null || true
+    if (( stash_created )); then
+      local restore_out
+      if ! restore_out=$(git stash pop 2>&1); then
+        log_error "git pull failed AND restoring your stashed local changes also hit a conflict"
+        ui_error "The pull itself failed, and re-applying your local changes afterward\nalso conflicted:\n\n$(printf '%s' "$restore_out" | tail -15)\n\nYour local edits are still safe in the stash (not lost), but the\nworking tree needs manual attention before anything else will work:\n\n  cd \"${PRESTO_DIR}\"\n  git status\n  git stash list\n\nResolve the conflict shown, or run 'git reset --hard HEAD' to discard\nthe partial pop and then 'git stash pop' again once clean."
+      fi
+    fi
     return 1
   }
 
-  (( stash_created )) && { git stash pop 2>/dev/null || log_warn "Stash pop had conflicts — check git status"; }
+  if (( stash_created )); then
+    local pop_out
+    if ! pop_out=$(git stash pop 2>&1); then
+      log_error "git stash pop conflicted — update NOT marked complete"
+      ui_error "The pull from GitHub succeeded, but re-applying your local changes\nafterward hit a conflict:\n\n$(printf '%s' "$pop_out" | tail -15)\n\nPresto has deliberately NOT marked this update as complete — your\nrepo is now sitting mid-conflict and needs manual resolution before\nanything else (including future updates) will work cleanly:\n\n  cd \"${PRESTO_DIR}\"\n  git status\n\nFor each file listed as unmerged, either:\n  git checkout --ours  -- <file>   # keep YOUR local version\n  git checkout --theirs -- <file>  # keep the pulled/upstream version\nthen:\n  git add <file>\n  git commit\n\nOr, to discard ALL of your local changes and just match GitHub exactly:\n  git reset --hard origin/main\n\nRe-run 'Check for Presto updates' once 'git status' shows a clean tree."
+      return 1
+    fi
+  fi
 
   # NOTE: deployed services/<svc>/*.env.example is intentionally NOT refreshed
   # here. .templates/ is already current (git pull just updated it directly —
