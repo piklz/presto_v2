@@ -291,8 +291,16 @@ _check_apt_updates() {
   fi
 
   ui_warn "${count} package(s) can be upgraded."
-  ui_confirm "Apply updates now? (sudo apt upgrade -y)" || return 0
-  run_cmd "Upgrading packages..." sudo apt-get upgrade -y
+  ui_confirm "Apply updates now? (sudo apt-get dist-upgrade -y)" || return 0
+  # dist-upgrade rather than plain upgrade: upgrade refuses to touch a
+  # package if the new version needs a dependency added OR removed, silently
+  # "keeping it back" — dist-upgrade actually resolves those, which is what
+  # people usually mean by "some packages don't update unless I use X".
+  # This is a genuinely different apt vs apt-get pitfall than the
+  # script-stability one — dist-upgrade (apt-get) and full-upgrade (apt)
+  # are equivalent in capability, so staying on apt-get here keeps the
+  # stable-for-scripts interface without leaving anything held back.
+  run_cmd "Upgrading packages..." sudo apt-get dist-upgrade -y
   ui_notify "Done ✓" "${count} package(s) upgraded.\n\nReboot if a kernel or firmware update was included."
 }
 
