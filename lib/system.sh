@@ -238,34 +238,48 @@ _check_apt_updates() {
   ui_confirm "Check for OS package updates? (sudo apt update)" || return 0
 
   # Captured directly (not via run_cmd's spinner) so we can actually inspect
-  # the output — a repo signature failure is a hard "Error:" that apt still
-  # exits nonzero for, but run_cmd hides everything by default and the
-  # exit code was never being checked here at all, so this used to fail
-  # completely silently.
+  # the output. Deliberately NOT gated on apt's own exit code below — a
+  # corrupted/unparseable keyring file for one repo is a soft failure apt
+  # recovers from by falling back to cached index data, and still exits 0
+  # overall (only a rotated/missing key is a hard, nonzero-exit failure) —
+  # so the charm-repo check has to scan the output text unconditionally,
+  # not just when apt_rc is nonzero.
   local apt_out apt_rc=0
   apt_out=$(sudo apt-get update -qq 2>&1) || apt_rc=$?
 
-  if (( apt_rc != 0 )); then
-    if printf '%s' "$apt_out" | grep -q "repo.charm.sh" \
-      && printf '%s' "$apt_out" | grep -qiE "NO_PUBKEY|is not signed|Missing key|EXPKEYSIG"; then
-      log_warn "Charm (gum) apt repo signature check failed — key likely rotated"
-      if ui_confirm "The Charm (gum) apt repo's signing key has rotated and can't be\nverified right now — this only affects future 'gum' updates via\napt, nothing else on your system is broken.\n\nRefresh the key now?"; then
-        if _refresh_charm_gpg_key; then
-          log_info "Charm apt key refreshed — retrying apt update"
-          apt_rc=0
-          apt_out=$(sudo apt-get update -qq 2>&1) || apt_rc=$?
-          if (( apt_rc == 0 )); then
-            ui_notify "Fixed ✓" "Charm apt key refreshed — apt update now succeeds cleanly."
-          else
-            ui_error "Key refreshed, but apt update still reports errors:\n\n$(printf '%s' "$apt_out" | tail -10)"
-          fi
+  # Any line that mentions the charm repo AND carries a trouble marker —
+  # covers both observed failure shapes ("Missing key"/"is not signed" for
+  # a rotated/absent key, "Failed to parse keyring"/EOF for a corrupted
+  # file) without hardcoding either phrasing specifically, since apt's
+  # exact wording varies by version and by which of the two problems it is.
+  local charm_trouble
+  charm_trouble=$(printf '%s\n' "$apt_out" \
+    | grep -i "charm\.sh" \
+    | grep -iE "err:|warning:|sqv returned|failed to (parse|fetch)|not signed|missing key|no_pubkey|expkeysig" \
+    || true)
+
+  if [[ -n "$charm_trouble" ]]; then
+    log_warn "Charm (gum) apt repo signature check failed: $charm_trouble"
+    if ui_confirm "The Charm (gum) apt repo's key can't be verified right now\n(rotated, missing, or the local keyring file is corrupted) —\nthis only affects future 'gum' updates via apt, nothing else on\nyour system is broken.\n\nRefresh the key now?"; then
+      if _refresh_charm_gpg_key; then
+        log_info "Charm apt key refreshed — retrying apt update"
+        apt_rc=0
+        apt_out=$(sudo apt-get update -qq 2>&1) || apt_rc=$?
+        charm_trouble=$(printf '%s\n' "$apt_out" \
+          | grep -i "charm\.sh" \
+          | grep -iE "err:|warning:|sqv returned|failed to (parse|fetch)|not signed|missing key|no_pubkey|expkeysig" \
+          || true)
+        if [[ -z "$charm_trouble" ]]; then
+          ui_notify "Fixed ✓" "Charm apt key refreshed — apt update now succeeds cleanly."
         else
-          ui_error "Failed to refresh the Charm apt key — check your internet connection.\n\nTo do it manually:\n  curl -fsSL https://repo.charm.sh/apt/gpg.key | sudo gpg --yes --dearmor -o /etc/apt/keyrings/charm.gpg"
+          ui_error "Key refreshed, but the charm repo is still reporting trouble:\n\n${charm_trouble}"
         fi
+      else
+        ui_error "Failed to refresh the Charm apt key — check your internet connection.\n\nTo do it manually:\n  curl -fsSL https://repo.charm.sh/apt/gpg.key | sudo gpg --yes --dearmor -o /etc/apt/keyrings/charm.gpg"
       fi
-    else
-      ui_warn "apt update reported errors — the package list may be incomplete:\n\n$(printf '%s' "$apt_out" | tail -10)"
     fi
+  elif (( apt_rc != 0 )); then
+    ui_warn "apt update reported errors — the package list may be incomplete:\n\n$(printf '%s' "$apt_out" | tail -10)"
   fi
 
   local count
