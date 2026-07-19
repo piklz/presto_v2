@@ -300,8 +300,37 @@ _check_apt_updates() {
   # script-stability one — dist-upgrade (apt-get) and full-upgrade (apt)
   # are equivalent in capability, so staying on apt-get here keeps the
   # stable-for-scripts interface without leaving anything held back.
-  run_cmd "Upgrading packages..." sudo apt-get dist-upgrade -y
-  ui_notify "Done ✓" "${count} package(s) upgraded.\n\nReboot if a kernel or firmware update was included."
+  #
+  # NOT run through run_cmd here — its spinner hides all output by default
+  # and its exit code was never checked, so a partial/failed upgrade would
+  # previously report "Done ✓" exactly the same as a clean one. Captured
+  # directly instead so failure is both detectable and inspectable.
+  log_info "Upgrading packages — this can take a few minutes..."
+  local upgrade_out upgrade_rc=0
+  upgrade_out=$(sudo apt-get dist-upgrade -y 2>&1) || upgrade_rc=$?
+
+  if (( upgrade_rc != 0 )); then
+    log_error "apt-get dist-upgrade failed (exit ${upgrade_rc})"
+    ui_error "The upgrade failed (exit code ${upgrade_rc}):\n\n$(printf '%s' "$upgrade_out" | tail -20)\n\nYour system may be in a partially-upgraded state. Try:\n  sudo dpkg --configure -a\n  sudo apt-get dist-upgrade\n\nto see the full picture and finish or roll back cleanly."
+    return 1
+  fi
+
+  # Verify against the ACTUAL post-upgrade state rather than assuming the
+  # pre-upgrade count still applies — a run that exits 0 can still leave
+  # packages held back for reasons unrelated to upgrade-vs-dist-upgrade
+  # (e.g. a repo that went stale mid-run), so re-check rather than assume.
+  local remaining
+  remaining=$(apt list --upgradable 2>/dev/null | grep -vc "^Listing...") || true
+
+  local reboot_note=""
+  [[ -f /var/run/reboot-required ]] && \
+    reboot_note="\n\n⚠  A reboot is required to finish this update (kernel or a core library changed)."
+
+  if (( remaining > 0 )); then
+    ui_warn "Upgrade completed, but ${remaining} package(s) are STILL listed as\nupgradable afterward — worth a look:\n\n  apt list --upgradable${reboot_note}"
+  else
+    ui_notify "Done ✓" "All ${count} package(s) upgraded — nothing left upgradable.${reboot_note}"
+  fi
 }
 
 # At-a-glance load/memory/disk/temp — no scrolling logs, just the headline numbers.
