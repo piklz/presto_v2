@@ -109,7 +109,7 @@ _update_status_refresh() {
   if (( behind > 0 )); then
     export PRESTO_UPDATE_AVAILABLE=1
     if [[ ! -f "$PRESTO_DIR/.update_notified" ]]; then
-      ui_warn "Presto is ${behind} commit(s) behind.\nUse '⬆️  Update Presto' from the menu, or System Tools → Check for Presto updates."
+      ui_warn "Presto is ${behind} commit(s) behind.\nUse '⬆️  Update Presto' from the menu, or System Tools → Check for Presto updates. "
       touch "$PRESTO_DIR/.update_notified"
     fi
   else
