@@ -1,0 +1,163 @@
+#---------------------------------------------------------------------#
+#     DAWARICH                                                        #
+#---------------------------------------------------------------------#
+
+  dawarich_redis:
+    image: redis:7.4-alpine
+    container_name: dawarich_redis
+    command: >
+      redis-server
+      --save 900 1
+      --save 300 10
+      --appendonly no
+    volumes:
+      - ${VOLUMES_DIR}/dawarich/shared:/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    networks:
+      private_network:
+
+  dawarich_db:
+    # ARM64-friendly image (important for Pi 4)
+    image: imresamu/postgis:17-3.5-alpine
+    # image: postgis/postgis:17-3.5-alpine   # use this only on amd64
+    container_name: dawarich_db
+    shm_size: 256mb          # reduced from 1G for Pi
+    volumes:
+      - ${VOLUMES_DIR}/dawarich/db:/var/lib/postgresql/data
+      - ${VOLUMES_DIR}/dawarich/shared:/var/shared
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-dawarich_development}
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-dawarich_development}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+    networks:
+      private_network:
+
+  dawarich_app:
+    image: freikin/dawarich:latest
+    container_name: dawarich_app
+    volumes:
+      - ${VOLUMES_DIR}/dawarich/public:/var/app/public
+      - ${VOLUMES_DIR}/dawarich/watched:/var/app/tmp/imports/watched
+      - ${VOLUMES_DIR}/dawarich/storage:/var/app/storage
+    ports:
+      - "${DAWARICH_APP_PORT:-3000}:3000"
+    stdin_open: true
+    tty: true
+    entrypoint: web-entrypoint.sh
+    command: ['bin/rails', 'server', '-p', '3000', '-b', '::']
+    restart: unless-stopped
+    env_file:
+      - ./services/dawarich/dawarich.env
+    environment:
+      RAILS_ENV: ${RAILS_ENV:-production}
+      REDIS_URL: redis://dawarich_redis:6379
+      DATABASE_HOST: dawarich_db
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: ${POSTGRES_USER:-postgres}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      DATABASE_NAME: ${POSTGRES_DB:-dawarich_development}
+      APPLICATION_HOSTS: ${APPLICATION_HOSTS:-localhost,::1,127.0.0.1}
+      TIME_ZONE: ${TIME_ZONE:-Europe/London}
+      APPLICATION_PROTOCOL: ${APPLICATION_PROTOCOL:-http}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-CHANGE_ME}
+      RAILS_LOG_TO_STDOUT: "true"
+      SELF_HOSTED: "true"
+      STORE_GEODATA: "true"
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO - http://127.0.0.1:3000/api/v1/health | grep -q '\"status\"\\s*:\\s*\"ok\"'"]
+      interval: 10s
+      retries: 30
+      start_period: 60s
+      timeout: 10s
+    depends_on:
+      dawarich_db:
+        condition: service_healthy
+      dawarich_redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 1.5G          # lowered for Pi 4
+    labels:
+      - homepage.group=LOCATION
+      - homepage.name=Dawarich
+      - homepage.icon=map.png
+      - homepage.href=http://${SYSTEM_HOSTNAME}:3000
+      - homepage.description=Location history tracker
+    networks:
+      private_network:
+
+  dawarich_sidekiq:
+    image: freikin/dawarich:latest
+    container_name: dawarich_sidekiq
+    volumes:
+      - ${VOLUMES_DIR}/dawarich/public:/var/app/public
+      - ${VOLUMES_DIR}/dawarich/watched:/var/app/tmp/imports/watched
+      - ${VOLUMES_DIR}/dawarich/storage:/var/app/storage
+    stdin_open: true
+    tty: true
+    entrypoint: sidekiq-entrypoint.sh
+    command: ['sidekiq']
+    restart: unless-stopped
+    env_file:
+      - ./services/dawarich/dawarich.env
+    environment:
+      RAILS_ENV: ${RAILS_ENV:-production}
+      REDIS_URL: redis://dawarich_redis:6379
+      DATABASE_HOST: dawarich_db
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: ${POSTGRES_USER:-postgres}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      DATABASE_NAME: ${POSTGRES_DB:-dawarich_development}
+      APPLICATION_HOSTS: ${APPLICATION_HOSTS:-localhost,::1,127.0.0.1}
+      BACKGROUND_PROCESSING_CONCURRENCY: ${BACKGROUND_PROCESSING_CONCURRENCY:-2}
+      APPLICATION_PROTOCOL: ${APPLICATION_PROTOCOL:-http}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:-CHANGE_ME}
+      RAILS_LOG_TO_STDOUT: "true"
+      SELF_HOSTED: "true"
+      STORE_GEODATA: "true"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f sidekiq"]
+      interval: 10s
+      retries: 30
+      start_period: 30s
+      timeout: 10s
+    depends_on:
+      dawarich_db:
+        condition: service_healthy
+      dawarich_redis:
+        condition: service_healthy
+      dawarich_app:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.40"
+          memory: 1G
+    networks:
+      private_network:
