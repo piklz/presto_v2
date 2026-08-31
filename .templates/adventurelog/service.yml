@@ -1,0 +1,78 @@
+#---------------------------------------------------------------------#
+#   ADVENTURELOG                                                      #
+#---------------------------------------------------------------------#
+
+  adventurelog_db:
+    # ARM64-friendly PostGIS image for Raspberry Pi 4
+    image: imresamu/postgis:16-3.5-alpine
+    container_name: adventurelog_db
+    shm_size: 256mb
+    restart: always
+    volumes:
+      - ${VOLUMES_DIR}/adventurelog/db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${ADVENTURELOG_DB_NAME:-database}
+      POSTGRES_USER: ${ADVENTURELOG_DB_USER:-adventure}
+      POSTGRES_PASSWORD: ${ADVENTURELOG_DB_PASSWORD:-changeme123}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${ADVENTURELOG_DB_USER:-adventure} -d ${ADVENTURELOG_DB_NAME:-database}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    networks:
+      private_network:
+
+  adventurelog_app:
+    image: ghcr.io/seanmorley15/adventurelog:latest
+    container_name: adventurelog_app
+    restart: unless-stopped
+    volumes:
+      - ${VOLUMES_DIR}/adventurelog/media:/code/media/
+    ports:
+      - "${ADVENTURELOG_APP_PORT:-8015}:80"
+    env_file:
+      - ./services/adventurelog/adventurelog.env
+    environment:
+      SITE_URL: ${ADVENTURELOG_SITE_URL:-http://localhost:8015}
+      PGHOST: adventurelog_db
+      POSTGRES_DB: ${ADVENTURELOG_DB_NAME:-database}
+      POSTGRES_USER: ${ADVENTURELOG_DB_USER:-adventure}
+      POSTGRES_PASSWORD: ${ADVENTURELOG_DB_PASSWORD:-changeme123}
+      PORT: "3000"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:80/health')\""
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      adventurelog_db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.60"
+          memory: 1.5G
+    labels:
+      - homepage.group=LOCATION
+      - homepage.name=AdventureLog
+      - homepage.icon=compass.png
+      - homepage.href=http://${SYSTEM_HOSTNAME}:${ADVENTURELOG_APP_PORT:-8015}
+      - homepage.description=Travel tracker & trip planner
+    networks:
+      private_network:
