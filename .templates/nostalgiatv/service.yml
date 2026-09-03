@@ -1,0 +1,16 @@
+#---------------------------------------------------------------------#
+#     NOSTALGIA TV SCHED SERVER                                                            #
+#---------------------------------------------------------------------#  
+  
+  nostalgiatv:
+    image: purestream711/nostalgiatv-server:latest
+    container_name: nostalgiatv-server
+    env_file:
+      - ./services/nostalgiatv/nostalgiatv.env
+    ports:
+      - "19850:19850"
+    volumes:
+      - ${VOLUMES_DIR}/nostalgiatv/data:/app/data
+      - ${VOLUMES_DIR}/nostalgiatv/config:/app/config
+      - ${VOLUMES_DIR}/nostalgiatv/logos:/app/logos
+    restart: unless-stopped
