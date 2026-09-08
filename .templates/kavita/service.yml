@@ -1,0 +1,25 @@
+
+#---------------------------------------------------------------------#
+#     KAVITA                                                          #
+#---------------------------------------------------------------------# 
+
+ kavita:
+    image: jvmilazz0/kavita:latest
+    container_name: kavita
+    env_file:
+      - ./services/kavita/kavita.env
+    volumes:
+      - ${VOLUMES_DIR}/kavita/manga:/manga
+      - ${VOLUMES_DIR}/kavita/comics:/comics
+      - ${VOLUMES_DIR}/kavita/books:/books
+      - ${VOLUMES_DIR}/kavita/config:/kavita/config
+    ports:
+      - "5000:5000"
+    labels:
+      - homepage.group=MEDIA
+      - homepage.name=kavita
+      - homepage.icon=kavita.png
+      - homepage.description=manga, comics, and book server
+    networks:
+      - private_network
+    restart: unless-stopped
