@@ -373,7 +373,7 @@ _build_stack() {
     ui_error "No .env file found at $PRESTO_DIR/.env\n\nRun presto_launch.sh first to auto-create it, then edit it."
     return 1
   fi
-  if grep -qE "192\.168\.1\.x|your-hostname|your-remote-hostname" "$env_file"; then
+  if grep -qE '^[[:space:]]*(SYSTEM_HOSTNAME|HOST_IP|REMOTE_HOSTNAME|REMOTE_IP)[[:space:]]*=[[:space:]]*(192\.168\.1\.x|your-hostname|your-remote-hostname)([[:space:]]|$)' "$env_file"; then
     ui_warn "Your .env file still has placeholder values.\nEdit it before starting your stack:\n\n  nano $env_file\n\nSet: SYSTEM_HOSTNAME, HOST_IP, REMOTE_HOSTNAME, REMOTE_IP"
     ui_confirm "Continue building stack anyway?" || return 0
   fi
