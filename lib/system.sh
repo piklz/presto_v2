@@ -132,8 +132,10 @@ git_do_update() {
     log_warn "Local changes stashed"
   fi
 
-  run_cmd "Pulling from GitHub..." git pull origin main || {
+  local pull_out
+  if ! pull_out=$(git pull origin main 2>&1); then
     log_error "git pull failed"
+    ui_error "Could not update Presto from GitHub.\n\nGit reported:\n\n$(printf '%s' "$pull_out" | tail -15)\n\nRun these commands for the full repository state:\n  cd \"${PRESTO_DIR}\"\n  git status\n  git remote -v\n  git branch -vv"
     if (( stash_created )); then
       local restore_out
       if ! restore_out=$(git stash pop 2>&1); then
@@ -142,7 +144,7 @@ git_do_update() {
       fi
     fi
     return 1
-  }
+  fi
 
   if (( stash_created )); then
     local pop_out
